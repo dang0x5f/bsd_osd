@@ -15,6 +15,7 @@
 
 #include <err.h>
 #include <mixer.h>
+#include <fontconfig/fontconfig.h>
 
 
 void increase_volume(void);
@@ -22,71 +23,73 @@ void increase_volume(void);
 #endif // OSD_VOLUME_H
 
 #ifdef OSD_VOLUME_IMPLEMENTATION
+
+char *font_pattern = "Deja Vu Sans Mono:pixelsize=20";
 char *str2 = "|||||||||-----------";
 char *str = "VOLUME            45";
-// char *str2 = "████████████████____";
-// char block = (char)219;
-// char *str = "_█";
-// char *str = "_";
 
-char *font_pattern = "Deja Vu Sans Mono:size=20";
-XftFont *xftfont;
-void font_setup(Display *display, int screen_num)
+XftFont *font_setup(Display *display, int screen_num)
 {
-    xftfont = XftFontOpenName(display, screen_num, font_pattern);
+    XftFont *xftfont = XftFontOpenName(display, screen_num, font_pattern);
     if(!xftfont){
         perror("XftFontOpenName() error\n");
         exit(EXIT_FAILURE);
     }
+    return(xftfont);
 }
 
 void increase_volume(void)
 {
-    int padding;
-
-    Display *display = XOpenDisplay(NULL);
-    int screen_num = DefaultScreen(display);
-    font_setup(display,screen_num);
-
-    // printf("%d\n",xftfont->max_advance_width);
-
-    XSetWindowAttributes attributes = 
-    { 
+    Display *display;
+    int screen_num;
+    int padding = 0;
+    Colormap colormap;
+    int depth;
+    int scrn_width, scrn_height;
+    int valuemask;
+    Visual *visual;
+    Window root;
+    Window window;
+    XftColor color;
+    XftFont *xftfont;
+    XGlyphInfo xgi;
+    XftDraw *draw;
+    XSetWindowAttributes attributes = { 
         .override_redirect=true,
         .background_pixel=0x000000,
         .event_mask=ExposureMask|SubstructureNotifyMask,
     };
 
-    XGlyphInfo xgi;
+    display     = XOpenDisplay(NULL);
+    root        = DefaultRootWindow(display);
+    screen_num  = DefaultScreen(display);
+    colormap    = DefaultColormap(display,screen_num);
+    xftfont     = font_setup(display,screen_num);
+    depth       = DefaultDepth(display,screen_num);
+    visual      = DefaultVisual(display,screen_num);
+    scrn_width  = XDisplayWidth(display,screen_num);
+    scrn_height = XDisplayHeight(display,screen_num);
+    valuemask   = CWOverrideRedirect|CWBackPixel|CWEventMask;
+
     XftTextExtentsUtf8(display,xftfont,str,strlen(str),&xgi);
-    
-    int scr_width = XDisplayWidth(display,screen_num);
-    int scr_height = XDisplayHeight(display,screen_num);
     // int win_width = xftfont->max_advance_width * strlen(str);
+    // printf("%d , %lu\n", xftfont->max_advance_width, strlen(str));
+    // printf("%dx%d, %d\n", win_width, win_height, xftfont->ascent);
+
     int win_width = xgi.xOff;
     int win_height = xftfont->height*2;
-
-    int x = (scr_width/2) - (win_width/2);
-    int y = (scr_height/4)*3;
-
-    printf("%d , %lu\n", xftfont->max_advance_width, strlen(str));
-    printf("%dx%d, %d\n", win_width, win_height, xftfont->ascent);
+    int x = (scrn_width*0.5)-(win_width*0.5);
+    int y = (scrn_height)*0.75;
     
-    Window window = XCreateWindow(display, DefaultRootWindow(display), 
-                    x,y, win_width,win_height, 0, DefaultDepth(display,screen_num),  
-                    CopyFromParent, DefaultVisual(display,screen_num), 
-                    CWOverrideRedirect|CWBackPixel|CWEventMask, &attributes);
+    window = XCreateWindow(display, root, x,y, win_width,win_height, 0, depth, 
+                           CopyFromParent, visual, valuemask, &attributes);
 
-    XftDraw *draw = XftDrawCreate(display,window,
-                    DefaultVisual(display,screen_num),
-                    DefaultColormap(display,screen_num));
+    draw = XftDrawCreate(display,window,visual,colormap);
 
-    XftColor color;
-    XftColorAllocName(display,DefaultVisual(display,screen_num),
-            DefaultColormap(display,screen_num),"#00FF00",&color);
+    XftColorAllocName(display,visual,colormap,"#00FF00",&color);
+
     XMapWindow(display,window);
     XSync(display,false);
-
 
     XEvent event;
     while(1){
