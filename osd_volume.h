@@ -20,7 +20,7 @@
 
 void increase_volume(void);
 float getvolume(void);
-void getspec1(float);
+XftGlyphFontSpec *getspec1(Display*, XftFont*, float);
 
 #endif // OSD_VOLUME_H
 
@@ -97,16 +97,49 @@ void increase_volume(void)
                 int lineno = 1;
                 float volume = getvolume();
                 // printf("%0.2f\n",volume);
-                XftGlyphFontSpec *spec1 = getspec1(volume);
+                XftGlyphFontSpec *spec1 = getspec1(display,xftfont,volume);
+                XftDrawGlyphFontSpec(draw,&color,spec1,SZ);
                 break;
         }
     }
 
 }
 
-void getspec1(float)
+XftGlyphFontSpec *getspec1(Display *display, XftFont *font, float volume)
 {
+    int vol = volume*100;
+    XftGlyphFontSpec *spec = malloc(sizeof(XftGlyphFontSpec)*SZ);
+    // TODO: add malloc ptr check
 
+    int xpos=0, ypos=font->height;
+    for(int i=0; i<SZ; ++i){
+        uint32_t glyph = (uint32_t)0x00 << 24 |
+                         (uint32_t)0x00 << 16 |
+                         (uint32_t)0x00 <<  8 |
+                 (uint32_t)def_line1[i] <<  0 ;
+        
+        uint32_t idx = XftCharIndex(display,font,glyph);
+        if(idx){
+            spec[i].font = font;
+            spec[i].glyph = idx;
+            spec[i].x = xpos;
+            spec[i].y = ypos;
+            xpos += font->max_advance_width;
+        }
+    }
+
+    for(int i=SZ-1; ; --i){
+        char c = (vol%10)+'0';
+        uint32_t glyph = (uint32_t)0x00 << 24 |
+                         (uint32_t)0x00 << 16 |
+                         (uint32_t)0x00 <<  8 |
+                         (uint32_t)   c <<  0 ;
+        uint32_t idx = XftCharIndex(display,font,glyph);
+        spec[i].glyph = idx;
+        if(vol<10) break;
+        vol /= 10;
+    }
+    return(spec);
 }
 
 float getvolume(void)
