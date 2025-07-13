@@ -74,7 +74,7 @@ void osd_volume(char operation)
     Window window;
     XftColor color;
     XftFont *xftfont;
-    XGlyphInfo xgi;
+    // XGlyphInfo xgi;
     XftDraw *draw;
     XSetWindowAttributes attributes = { 
         .override_redirect=true,
@@ -121,9 +121,8 @@ void osd_volume(char operation)
         switch(event.type){
             case Expose:
                 XClearWindow(display,window);
-                int lineno = 1;
+                // int lineno = 1;
                 volume = getvolume();
-                // printf("%0.2f\n",volume);
                 XftGlyphFontSpec *spec1 = getspec1(display,xftfont,volume);
                 XftGlyphFontSpec *spec2 = getspec2(display,xftfont,volume);
                 XftDrawGlyphFontSpec(draw,&color,spec1,SZ);
@@ -234,7 +233,6 @@ XftGlyphFontSpec *getspec2(Display *display, XftFont *font, float volume)
 float getvolume(void)
 {
     struct mixer *m;
-    mix_volume_t vol;
     char *mix_name, *dev_name;
 
     mix_name = NULL;
@@ -242,7 +240,7 @@ float getvolume(void)
         err(1,"mixer_open: %s", mix_name);
 
     dev_name = "vol";
-    if((m->dev=mixer_get_dev_byname(m,dev_name))<0)
+    if(!(m->dev=mixer_get_dev_byname(m,dev_name)))
         err(1,"unknown device: %s", dev_name);
 
     return(m->dev->vol.right);
@@ -259,11 +257,11 @@ void change_volume(char op)
         err(1,"mixer_open: %s", mix_name);
 
     dev_name = "vol";
-    if((m->dev=mixer_get_dev_byname(m,dev_name))<0)
+    if(!(m->dev=mixer_get_dev_byname(m,dev_name)))
         err(1,"unknown device: %s", dev_name);
 
     float unit = 0.01f;
-    if(op=='-') unit = -(unit);
+    if(op=='-'||op=='d') unit = -(unit);
 
     vol.left = m->dev->vol.left + unit;
     vol.right = m->dev->vol.right + unit;

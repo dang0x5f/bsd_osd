@@ -11,9 +11,27 @@
 #define OSD_VOLUME_IMPLEMENTATION
 #include "osd_volume.h"
 
+void usage(char *progname)
+{
+    printf("usage: %s -v d[-]/u[+]\n",progname);
+    exit(EXIT_FAILURE);
+}
+
 int main(int argc, char **argv)
 {
-    osd_volume(argv[1][0]);
+    if(argc < 2) usage(argv[0]);
 
-    return(0);
+    int opt;
+    while((opt=getopt(argc,argv,"v:")) != -1){
+        switch(opt){
+            case 'v':
+                osd_volume(optarg[0]);
+                break;
+            case '?':
+            default:
+                usage(argv[0]);
+        }
+    }
+
+    return(EXIT_SUCCESS);
 }
