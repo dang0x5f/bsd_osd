@@ -18,8 +18,7 @@
 #include <mixer.h>
 #include <fontconfig/fontconfig.h>
 
-int create_volume_lock(void);
-void display_volume_osd(int,char);
+void osd_volume(char);
 
 #endif // OSD_VOLUME_H
 
@@ -28,22 +27,21 @@ void display_volume_osd(int,char);
 #define OSD_VOLUME_LOCK "/tmp/osd_volume.lck"
 #define SZ 20
 
+float getvolume(void);
 void sig_handler(int);
 void change_volume(char);
-float getvolume(void);
+int create_volume_lock(void);
 XftGlyphFontSpec *getspec1(Display*, XftFont*, float);
 XftGlyphFontSpec *getspec2(Display*, XftFont*, float);
 
-char *font_pattern = "Deja Vu Sans Mono:pixelsize=20";
-char *str2 = "|||||||||-----------";
-char *def_line1 = "VOLUME              ";
-
-double duration = 5.0;
-time_t start_time, curr_time;
 
 bool timeup=false;
-Display *display;
-Window window;
+int padding = 10;
+double duration = 5.0;
+time_t start_time, curr_time;
+char *def_line1 = "VOLUME              ";
+char *font_pattern = "Deja Vu Sans Mono:pixelsize=20";
+
 
 XftFont *font_setup(Display *display, int screen_num)
 {
@@ -55,24 +53,25 @@ XftFont *font_setup(Display *display, int screen_num)
     return(xftfont);
 }
 
-void display_volume_osd(int fd,char operation)
+void osd_volume(char operation)
 {
     change_volume(operation);
+
+    int fd = create_volume_lock();
     if(fd==-1) return;
     close(fd);
 
     signal(SIGUSR1,sig_handler);
 
-    // Display *display;
+    Display *display;
     int screen_num;
-    int padding = 0;
     Colormap colormap;
     int depth;
     int scrn_width, scrn_height;
     int valuemask;
     Visual *visual;
     Window root;
-    // Window window;
+    Window window;
     XftColor color;
     XftFont *xftfont;
     XGlyphInfo xgi;
@@ -80,6 +79,7 @@ void display_volume_osd(int fd,char operation)
     XSetWindowAttributes attributes = { 
         .override_redirect=true,
         .background_pixel=0x000000,
+        .border_pixel=0xfffdd0,
         .event_mask=ExposureMask|SubstructureNotifyMask,
     };
 
@@ -92,16 +92,19 @@ void display_volume_osd(int fd,char operation)
     visual      = DefaultVisual(display,screen_num);
     scrn_width  = XDisplayWidth(display,screen_num);
     scrn_height = XDisplayHeight(display,screen_num);
-    valuemask   = CWOverrideRedirect|CWBackPixel|CWEventMask;
+    valuemask   = CWOverrideRedirect|CWBackPixel|CWEventMask|CWBorderPixel;
     XftColorAllocName(display,visual,colormap,"#00FF00",&color);
 
-    int win_width  = xftfont->max_advance_width*SZ;
-    int win_height = xftfont->height*2;
+    // int win_width  = xftfont->max_advance_width*SZ;
+    int win_width  = (xftfont->max_advance_width*SZ) + (padding*2);
+    // int win_height = xftfont->height*2;
     // int win_height = (xftfont->height*2) + (xftfont->descent*2);
+    // int win_height = xftfont->ascent*2;
+    int win_height = (xftfont->ascent*2) + (padding*2);
     int x = (scrn_width*0.5)-(win_width*0.5);
     int y = (scrn_height)*0.75;
     
-    window = XCreateWindow(display, root, x,y, win_width,win_height, 0, depth, 
+    window = XCreateWindow(display, root, x,y, win_width,win_height, 2, depth, 
                            CopyFromParent, visual, valuemask, &attributes);
 
     draw = XftDrawCreate(display,window,visual,colormap);
@@ -128,7 +131,7 @@ void display_volume_osd(int fd,char operation)
                 break;
         }
         
-        usleep(1000);
+        usleep(10000);
         time(&curr_time);
         difference = difftime(curr_time,start_time);
 
@@ -154,7 +157,7 @@ XftGlyphFontSpec *getspec1(Display *display, XftFont *font, float volume)
     XftGlyphFontSpec *spec = malloc(sizeof(XftGlyphFontSpec)*SZ);
     // TODO: add malloc ptr check
 
-    int xpos=0, ypos=font->height;
+    int xpos=padding, ypos=(font->ascent-font->descent) +padding;
     for(int i=0; i<SZ; ++i){
         uint32_t glyph = (uint32_t)0x00 << 24 |
                          (uint32_t)0x00 << 16 |
@@ -191,7 +194,7 @@ XftGlyphFontSpec *getspec2(Display *display, XftFont *font, float volume)
     XftGlyphFontSpec *spec = malloc(sizeof(XftGlyphFontSpec)*SZ);
     // TODO: add malloc ptr check
 
-    int xpos=0, ypos=font->height*2;
+    int xpos=padding, ypos=(font->ascent*2-font->descent) +padding;
     int nblock = vol/5;
     int i=0;
     for(;i<nblock;++i){

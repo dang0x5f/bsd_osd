@@ -13,7 +13,7 @@
 
 int main(int argc, char **argv)
 {
-    display_volume_osd(create_volume_lock(),argv[1][0]);
+    osd_volume(argv[1][0]);
 
     return(0);
 }
