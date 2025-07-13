@@ -17,15 +17,18 @@
 #include <mixer.h>
 #include <fontconfig/fontconfig.h>
 
-void change_volume(char);
-void display_volume_osd(void);
+int create_volume_lock(void);
+void display_volume_osd(int,char);
 
 #endif // OSD_VOLUME_H
 
 #ifdef OSD_VOLUME_IMPLEMENTATION
 
+#define OSD_VOLUME_LOCK "/tmp/osd_volume.lck"
 #define SZ 20
 
+void sig_handler(int);
+void change_volume(char);
 float getvolume(void);
 XftGlyphFontSpec *getspec1(Display*, XftFont*, float);
 XftGlyphFontSpec *getspec2(Display*, XftFont*, float);
@@ -33,6 +36,10 @@ XftGlyphFontSpec *getspec2(Display*, XftFont*, float);
 char *font_pattern = "Deja Vu Sans Mono:pixelsize=20";
 char *str2 = "|||||||||-----------";
 char *def_line1 = "VOLUME              ";
+
+bool timeup=false;
+Display *display;
+Window window;
 
 XftFont *font_setup(Display *display, int screen_num)
 {
@@ -44,9 +51,15 @@ XftFont *font_setup(Display *display, int screen_num)
     return(xftfont);
 }
 
-void display_volume_osd(void)
+void display_volume_osd(int fd,char operation)
 {
-    Display *display;
+    change_volume(operation);
+    if(fd==-1) return;
+    close(fd);
+
+    signal(SIGALRM,sig_handler);
+
+    // Display *display;
     int screen_num;
     int padding = 0;
     Colormap colormap;
@@ -55,7 +68,7 @@ void display_volume_osd(void)
     int valuemask;
     Visual *visual;
     Window root;
-    Window window;
+    // Window window;
     XftColor color;
     XftFont *xftfont;
     XGlyphInfo xgi;
@@ -91,13 +104,16 @@ void display_volume_osd(void)
     XMapWindow(display,window);
     XSync(display,false);
 
+    alarm(5);
+
     XEvent event;
-    while(1){
+    float volume;
+    while(!timeup){
         XNextEvent(display,&event);
         switch(event.type){
             case Expose:
                 int lineno = 1;
-                float volume = getvolume();
+                volume = getvolume();
                 // printf("%0.2f\n",volume);
                 XftGlyphFontSpec *spec1 = getspec1(display,xftfont,volume);
                 XftGlyphFontSpec *spec2 = getspec2(display,xftfont,volume);
@@ -105,6 +121,15 @@ void display_volume_osd(void)
                 XftDrawGlyphFontSpec(draw,&color,spec2,SZ);
                 break;
         }
+        
+        usleep(100);
+        XEvent temp;
+        if(volume != getvolume())
+            temp.type=Expose;
+        else
+            temp.type=ConfigureNotify;
+        XSendEvent(display,window,0,0,&temp);
+        XFlush(display);
     }
 
 }
@@ -230,31 +255,21 @@ void change_volume(char op)
     // printf("left: %0.2f right: %0.2f\n", m->dev->vol.left,m->dev->vol.right); 
 }
 
-void increase_volume1(void)
+int create_volume_lock(void)
 {
-    printf("Hello, World!\n");
-    struct mixer *m;
-    mix_volume_t vol;
-    char *mix_name, *dev_name;
-
-    mix_name = NULL;
-    if((m=mixer_open(mix_name))==NULL)
-        err(1,"mixer_open: %s", mix_name);
-
-    dev_name = "vol";
-    if((m->dev=mixer_get_dev_byname(m,dev_name))<0)
-        err(1,"unknown device: %s", dev_name);
-
-    printf("left: %0.2f right: %0.2f\n", m->dev->vol.left,m->dev->vol.right); 
-
-    vol.left = m->dev->vol.left + 0.01;
-    vol.right = m->dev->vol.right + 0.01;
-    mixer_set_vol(m,vol);
-    // if(mixer_set_vol(m,vol) < 0)
-    //     warn("cannot change volume");
-    
-    printf("left: %0.2f right: %0.2f\n", m->dev->vol.left,m->dev->vol.right); 
+    int fd;
+    fd=open(OSD_VOLUME_LOCK, O_WRONLY|O_CREAT|O_EXCL, S_IRWXU);
+    return(fd);
 }
 
+void sig_handler(int sig)
+{
+    switch(sig){
+        case SIGALRM:
+            remove(OSD_VOLUME_LOCK);
+            exit(0);
+            break;
+    }
+}
 
 #endif // OSD_VOLUME_IMPLEMENTATION
