@@ -14,6 +14,7 @@
 /* ████████████████____ */
 
 #include <err.h>
+#include <time.h>
 #include <mixer.h>
 #include <fontconfig/fontconfig.h>
 
@@ -37,6 +38,9 @@ char *font_pattern = "Deja Vu Sans Mono:pixelsize=20";
 char *str2 = "|||||||||-----------";
 char *def_line1 = "VOLUME              ";
 
+double duration = 5.0;
+time_t start_time, curr_time;
+
 bool timeup=false;
 Display *display;
 Window window;
@@ -57,7 +61,7 @@ void display_volume_osd(int fd,char operation)
     if(fd==-1) return;
     close(fd);
 
-    signal(SIGALRM,sig_handler);
+    signal(SIGUSR1,sig_handler);
 
     // Display *display;
     int screen_num;
@@ -105,10 +109,10 @@ void display_volume_osd(int fd,char operation)
     XMapWindow(display,window);
     XSync(display,false);
 
-    alarm(5);
-
+    time(&start_time);
     XEvent event;
     float volume;
+    double difference;
     while(!timeup){
         XNextEvent(display,&event);
         switch(event.type){
@@ -124,16 +128,24 @@ void display_volume_osd(int fd,char operation)
                 break;
         }
         
-        usleep(100);
+        usleep(1000);
+        time(&curr_time);
+        difference = difftime(curr_time,start_time);
+
         XEvent temp;
-        if(volume != getvolume())
+        if(volume != getvolume()){
             temp.type=Expose;
-        else
+            raise(SIGUSR1);
+        }else{
             temp.type=ConfigureNotify;
+        }
         XSendEvent(display,window,0,0,&temp);
         XFlush(display);
-    }
 
+        if(difference >= duration) timeup=true;
+    }
+    remove(OSD_VOLUME_LOCK);
+    // TODO: free allocation
 }
 
 XftGlyphFontSpec *getspec1(Display *display, XftFont *font, float volume)
@@ -253,8 +265,6 @@ void change_volume(char op)
     vol.left = m->dev->vol.left + unit;
     vol.right = m->dev->vol.right + unit;
     mixer_set_vol(m,vol);
-
-    // printf("left: %0.2f right: %0.2f\n", m->dev->vol.left,m->dev->vol.right); 
 }
 
 int create_volume_lock(void)
@@ -267,9 +277,8 @@ int create_volume_lock(void)
 void sig_handler(int sig)
 {
     switch(sig){
-        case SIGALRM:
-            remove(OSD_VOLUME_LOCK);
-            exit(0);
+        case SIGUSR1:
+            time(&start_time);
             break;
     }
 }
