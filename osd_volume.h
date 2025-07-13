@@ -17,16 +17,17 @@
 #include <mixer.h>
 #include <fontconfig/fontconfig.h>
 
-
-void increase_volume(void);
-float getvolume(void);
-XftGlyphFontSpec *getspec1(Display*, XftFont*, float);
+void display_volume_osd(void);
 
 #endif // OSD_VOLUME_H
 
 #ifdef OSD_VOLUME_IMPLEMENTATION
 
 #define SZ 20
+
+float getvolume(void);
+XftGlyphFontSpec *getspec1(Display*, XftFont*, float);
+XftGlyphFontSpec *getspec2(Display*, XftFont*, float);
 
 char *font_pattern = "Deja Vu Sans Mono:pixelsize=20";
 char *str2 = "|||||||||-----------";
@@ -42,7 +43,7 @@ XftFont *font_setup(Display *display, int screen_num)
     return(xftfont);
 }
 
-void increase_volume(void)
+void display_volume_osd(void)
 {
     Display *display;
     int screen_num;
@@ -98,7 +99,9 @@ void increase_volume(void)
                 float volume = getvolume();
                 // printf("%0.2f\n",volume);
                 XftGlyphFontSpec *spec1 = getspec1(display,xftfont,volume);
+                XftGlyphFontSpec *spec2 = getspec2(display,xftfont,volume);
                 XftDrawGlyphFontSpec(draw,&color,spec1,SZ);
+                XftDrawGlyphFontSpec(draw,&color,spec2,SZ);
                 break;
         }
     }
@@ -142,6 +145,49 @@ XftGlyphFontSpec *getspec1(Display *display, XftFont *font, float volume)
     return(spec);
 }
 
+XftGlyphFontSpec *getspec2(Display *display, XftFont *font, float volume)
+{
+    int vol = volume*100;
+    XftGlyphFontSpec *spec = malloc(sizeof(XftGlyphFontSpec)*SZ);
+    // TODO: add malloc ptr check
+
+    int xpos=0, ypos=font->height*2;
+    int nblock = vol/5;
+    int i=0;
+    for(;i<nblock;++i){
+        uint32_t glyph = (uint32_t)0x00 << 24 |
+                         (uint32_t)0x00 << 16 |
+                         (uint32_t)0x25 <<  8 |
+                         (uint32_t)0x88 <<  0 ;
+        
+        uint32_t idx = XftCharIndex(display,font,glyph);
+        if(idx){
+            spec[i].font = font;
+            spec[i].glyph = idx;
+            spec[i].x = xpos;
+            spec[i].y = ypos;
+            xpos += font->max_advance_width;
+        }
+    }
+    for(;i<SZ;++i){
+        uint32_t glyph = (uint32_t)0x00 << 24 |
+                         (uint32_t)0x00 << 16 |
+                         (uint32_t)0x00 <<  8 |
+                         (uint32_t)0x5f <<  0 ;
+        
+        uint32_t idx = XftCharIndex(display,font,glyph);
+        if(idx){
+            spec[i].font = font;
+            spec[i].glyph = idx;
+            spec[i].x = xpos;
+            spec[i].y = ypos;
+            xpos += font->max_advance_width;
+        }
+    }
+    
+    return(spec);
+}
+
 float getvolume(void)
 {
     struct mixer *m;
@@ -156,15 +202,6 @@ float getvolume(void)
     if((m->dev=mixer_get_dev_byname(m,dev_name))<0)
         err(1,"unknown device: %s", dev_name);
 
-    // printf("left: %0.2f right: %0.2f\n", m->dev->vol.left,m->dev->vol.right); 
-
-    // vol.left = m->dev->vol.left + 0.01;
-    // vol.right = m->dev->vol.right + 0.01;
-    // mixer_set_vol(m,vol);
-    // if(mixer_set_vol(m,vol) < 0)
-    //     warn("cannot change volume");
-    
-    // printf("left: %0.2f right: %0.2f\n", m->dev->vol.left,m->dev->vol.right); 
     return(m->dev->vol.right);
 }
 
