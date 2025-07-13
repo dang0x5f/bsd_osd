@@ -93,6 +93,7 @@ void display_volume_osd(int fd,char operation)
 
     int win_width  = xftfont->max_advance_width*SZ;
     int win_height = xftfont->height*2;
+    // int win_height = (xftfont->height*2) + (xftfont->descent*2);
     int x = (scrn_width*0.5)-(win_width*0.5);
     int y = (scrn_height)*0.75;
     
@@ -112,6 +113,7 @@ void display_volume_osd(int fd,char operation)
         XNextEvent(display,&event);
         switch(event.type){
             case Expose:
+                XClearWindow(display,window);
                 int lineno = 1;
                 volume = getvolume();
                 // printf("%0.2f\n",volume);
