@@ -10,7 +10,7 @@
 
 int main(int argc, char **argv)
 {
-    display_volume_osd();
+    /* display_volume_osd(); */
 
     return(0);
 }

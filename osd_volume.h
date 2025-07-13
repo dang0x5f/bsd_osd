@@ -17,6 +17,7 @@
 #include <mixer.h>
 #include <fontconfig/fontconfig.h>
 
+void change_volume(char);
 void display_volume_osd(void);
 
 #endif // OSD_VOLUME_H
@@ -203,6 +204,30 @@ float getvolume(void)
         err(1,"unknown device: %s", dev_name);
 
     return(m->dev->vol.right);
+}
+
+void change_volume(char op)
+{
+    struct mixer *m;
+    mix_volume_t vol;
+    char *mix_name, *dev_name;
+
+    mix_name = NULL;
+    if((m=mixer_open(mix_name))==NULL)
+        err(1,"mixer_open: %s", mix_name);
+
+    dev_name = "vol";
+    if((m->dev=mixer_get_dev_byname(m,dev_name))<0)
+        err(1,"unknown device: %s", dev_name);
+
+    float unit = 0.01f;
+    if(op=='-') unit = -(unit);
+
+    vol.left = m->dev->vol.left + unit;
+    vol.right = m->dev->vol.right + unit;
+    mixer_set_vol(m,vol);
+
+    // printf("left: %0.2f right: %0.2f\n", m->dev->vol.left,m->dev->vol.right); 
 }
 
 void increase_volume1(void)
