@@ -81,7 +81,9 @@ void osd_volume(char operation)
         .override_redirect=true,
         .background_pixel=0x000000,
         .border_pixel=0xfffdd0,
-        .event_mask=ExposureMask|SubstructureNotifyMask,
+        .event_mask=ExposureMask|
+            VisibilityChangeMask|
+          SubstructureNotifyMask,
     };
 
     display     = XOpenDisplay(NULL);
@@ -129,6 +131,9 @@ void osd_volume(char operation)
                 XftDrawGlyphFontSpec(draw,&color,spec1,SZ);
                 XftDrawGlyphFontSpec(draw,&color,spec2,SZ);
                 break;
+            case VisibilityNotify:
+                XRaiseWindow(display,window);
+                break;
         }
         
         usleep(10000);
@@ -140,7 +145,7 @@ void osd_volume(char operation)
             temp.type=Expose;
             raise(SIGUSR1);
         }else{
-            temp.type=ConfigureNotify;
+            temp.type=VisibilityNotify;
         }
         XSendEvent(display,window,0,0,&temp);
         XFlush(display);
