@@ -13,7 +13,8 @@
 
 void usage(char *progname)
 {
-    printf("usage: %s -v d[-]/u[+]\n",progname);
+    printf("usage:\n  %s -v %s\n",
+            progname, "[d/-/u/+]");
     exit(EXIT_FAILURE);
 }
 

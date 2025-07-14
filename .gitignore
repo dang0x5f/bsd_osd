@@ -1,4 +1,6 @@
 osd
 tags
+*.o
+*.d
 *.swp
 *.core

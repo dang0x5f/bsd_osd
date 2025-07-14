@@ -25,6 +25,7 @@ void osd_volume(char);
 #ifdef OSD_VOLUME_IMPLEMENTATION
 
 #define OSD_VOLUME_LOCK "/tmp/osd_volume.lck"
+#define PX_BETWEEN 1  // 1px between top and bottom
 #define SZ 20
 
 float getvolume(void);
@@ -100,7 +101,7 @@ void osd_volume(char operation)
     // int win_height = xftfont->height*2;
     // int win_height = (xftfont->height*2) + (xftfont->descent*2);
     // int win_height = xftfont->ascent*2;
-    int win_height = (xftfont->ascent*2) + (padding*2);
+    int win_height = (xftfont->ascent*2) + (padding*2) +PX_BETWEEN;
     int x = (scrn_width*0.5)-(win_width*0.5);
     int y = (scrn_height)*0.75;
     
@@ -193,7 +194,7 @@ XftGlyphFontSpec *getspec2(Display *display, XftFont *font, float volume)
     XftGlyphFontSpec *spec = malloc(sizeof(XftGlyphFontSpec)*SZ);
     // TODO: add malloc ptr check
 
-    int xpos=padding, ypos=(font->ascent*2-font->descent) +padding;
+    int xpos=padding, ypos=(font->ascent*2-font->descent) +padding +PX_BETWEEN;
     int nblock = vol/5;
     int i=0;
     for(;i<nblock;++i){
