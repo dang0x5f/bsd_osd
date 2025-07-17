@@ -41,7 +41,8 @@ bool timeup=false;
 int padding = 10;
 double duration = 5.0;
 time_t start_time, curr_time;
-char *def_line1 = "VOLUME              ";
+char *def_line1 = "VOLUME              "; // len=SZ
+char *muted_str = "MUTED";
 char *font_pattern = "Deja Vu Sans Mono:pixelsize=20";
 
 
@@ -118,6 +119,7 @@ void osd_volume(char operation)
 
     time(&start_time);
     XEvent event;
+    int mute_status = is_muted();
     float volume;
     double difference;
     while(!timeup){
@@ -144,7 +146,8 @@ void osd_volume(char operation)
         difference = difftime(curr_time,start_time);
 
         XEvent temp;
-        if(volume != getvolume()){
+        if(volume != getvolume()||mute_status != is_muted()){
+            mute_status = is_muted();
             temp.type=Expose;
             raise(SIGUSR1);
         }else{
@@ -162,7 +165,21 @@ void osd_volume(char operation)
 int is_muted(void)
 {
     int muted = 0;
+    struct mixer *m;
+    char *mix_name, *dev_name;
 
+    mix_name = NULL;
+    if((m=mixer_open(mix_name))==NULL)
+        err(1,"mixer_open: %s", mix_name);
+
+    dev_name = "vol";
+    if(!(m->dev=mixer_get_dev_byname(m,dev_name)))
+        err(1,"unknown device: %s", dev_name);
+
+    muted = MIX_ISMUTE(m, m->dev->devno);
+    mixer_close(m);
+    /* printf("%d\n",muted); */
+    return(muted);
 }
 
 XftGlyphFontSpec *getspec1(Display *display, XftFont *font, float volume)
@@ -188,17 +205,30 @@ XftGlyphFontSpec *getspec1(Display *display, XftFont *font, float volume)
         }
     }
 
-    for(int i=SZ-1; ; --i){
-        char c = (vol%10)+'0';
-        uint32_t glyph = (uint32_t)0x00 << 24 |
-                         (uint32_t)0x00 << 16 |
-                         (uint32_t)0x00 <<  8 |
-                         (uint32_t)   c <<  0 ;
-        uint32_t idx = XftCharIndex(display,font,glyph);
-        spec[i].glyph = idx;
-        if(vol<10) break;
-        vol /= 10;
+    if(is_muted()){
+        for(int i=(SZ)-strlen(muted_str),j=0 ; i<SZ ; ++i, ++j){
+            char c = muted_str[j];
+            uint32_t glyph = (uint32_t)0x00 << 24 |
+                             (uint32_t)0x00 << 16 |
+                             (uint32_t)0x00 <<  8 |
+                             (uint32_t)   c <<  0 ;
+            uint32_t idx = XftCharIndex(display,font,glyph);
+            spec[i].glyph = idx;
+        }
+    }else{
+        for(int i=SZ-1; ; --i){
+            char c = (vol%10)+'0';
+            uint32_t glyph = (uint32_t)0x00 << 24 |
+                             (uint32_t)0x00 << 16 |
+                             (uint32_t)0x00 <<  8 |
+                             (uint32_t)   c <<  0 ;
+            uint32_t idx = XftCharIndex(display,font,glyph);
+            spec[i].glyph = idx;
+            if(vol<10) break;
+            vol /= 10;
+        }
     }
+
     return(spec);
 }
 
@@ -279,7 +309,8 @@ void change_volume(char op)
 
     switch(op){
         case'!':
-            printf("MUTE TOGGLE\n");
+            /* printf("MUTE TOGGLE\n"); */
+            mixer_set_mute(m,MIX_TOGGLEMUTE);
             break;
         case'+':
         case'-':
