@@ -141,7 +141,7 @@ void osd_volume(char operation)
                 break;
         }
         
-        usleep(1000);
+        usleep(100000);
         time(&curr_time);
         difference = difftime(curr_time,start_time);
 
