@@ -1,7 +1,7 @@
 #ifndef OSD_VOLUME_H
 #define OSD_VOLUME_H
 
-/* VOLUME            20 */
+/* VOLUME         MUTED */
 /* ||||---------------- */
 
 /* VOLUME            45 */
@@ -28,6 +28,7 @@ void osd_volume(char);
 #define PX_BETWEEN 1  // 1px between top and bottom
 #define SZ 20
 
+int is_muted(void);
 float getvolume(void);
 void sig_handler(int);
 void change_volume(char);
@@ -130,13 +131,15 @@ void osd_volume(char operation)
                 XftGlyphFontSpec *spec2 = getspec2(display,xftfont,volume);
                 XftDrawGlyphFontSpec(draw,&color,spec1,SZ);
                 XftDrawGlyphFontSpec(draw,&color,spec2,SZ);
+                free(spec1);
+                free(spec2);
                 break;
             case VisibilityNotify:
                 XRaiseWindow(display,window);
                 break;
         }
         
-        usleep(10000);
+        usleep(1000);
         time(&curr_time);
         difference = difftime(curr_time,start_time);
 
@@ -148,12 +151,18 @@ void osd_volume(char operation)
             temp.type=VisibilityNotify;
         }
         XSendEvent(display,window,0,0,&temp);
-        XFlush(display);
+        /* XFlush(display); */
 
         if(difference >= duration) timeup=true;
     }
     remove(OSD_VOLUME_LOCK);
     // TODO: free allocation
+}
+
+int is_muted(void)
+{
+    int muted = 0;
+
 }
 
 XftGlyphFontSpec *getspec1(Display *display, XftFont *font, float volume)
@@ -249,7 +258,9 @@ float getvolume(void)
     if(!(m->dev=mixer_get_dev_byname(m,dev_name)))
         err(1,"unknown device: %s", dev_name);
 
-    return(m->dev->vol.right);
+    float v = m->dev->vol.right;
+    mixer_close(m);
+    return(v);
 }
 
 void change_volume(char op)
@@ -266,12 +277,30 @@ void change_volume(char op)
     if(!(m->dev=mixer_get_dev_byname(m,dev_name)))
         err(1,"unknown device: %s", dev_name);
 
-    float unit = 0.01f;
-    if(op=='-'||op=='d') unit = -(unit);
+    switch(op){
+        case'!':
+            printf("MUTE TOGGLE\n");
+            break;
+        case'+':
+        case'-':
+        case'u':
+        case'd':
+            float unit = 0.01f;
+            if(op=='-'||op=='d') unit = -(unit);
 
-    vol.left = m->dev->vol.left + unit;
-    vol.right = m->dev->vol.right + unit;
-    mixer_set_vol(m,vol);
+            vol.right = m->dev->vol.right + unit;
+            vol.left  = m->dev->vol.left  + unit;
+            mixer_set_vol(m,vol);
+            break;
+    }
+    /* float unit = 0.01f; */
+    /* if(op=='-'||op=='d') unit = -(unit); */
+
+    /* vol.left = m->dev->vol.left + unit; */
+    /* vol.right = m->dev->vol.right + unit; */
+    /* mixer_set_vol(m,vol); */
+
+    mixer_close(m);
 }
 
 int create_volume_lock(void)

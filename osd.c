@@ -23,11 +23,12 @@ int main(int argc, char **argv)
     if(argc < 2) usage(argv[0]);
 
     int opt;
-    while((opt=getopt(argc,argv,"v:")) != -1){
+    while((opt=getopt(argc,argv,"v:h?")) != -1){
         switch(opt){
             case 'v':
                 osd_volume(optarg[0]);
                 break;
+            case 'h':
             case '?':
             default:
                 usage(argv[0]);
