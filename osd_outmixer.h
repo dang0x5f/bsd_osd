@@ -8,7 +8,7 @@ int osd_outmixer(void);         // Driver function
 void *create_mixerlist(void);   // Retrieve list of mixer devices
 void get_defaultunit(void);     
 void set_defaultunit(void);
-void create_buttonlist(void);   
+int create_buttonlist(int);   
 
 typedef struct  {
     Display *display;
@@ -34,7 +34,7 @@ typedef struct  {
 
 WinResources *init_resources(void);    // Setup window essentials
 
-char *font_name = "Deja Vu Sans Mono:pixelsize=20";
+char *font_name = "Deja Vu Sans Mono:pixelsize=12";
 XftFont *font_setup2(Display *display, int screen_num)
 {
     XftFont *xftfont = XftFontOpenName(display,screen_num,font_name);
@@ -55,10 +55,11 @@ int osd_outmixer(void)
     if((nmixers=mixer_get_nmixers())<0)
         errx(1,"No mixers present in system");
 
+    int width = create_buttonlist(nmixers) * font->max_advance_width;
     int height = (nmixers*2)*font->height;
     
     Window root = DefaultRootWindow(R->display);
-    Window window = XCreateWindow(R->display,root,XPOS,YPOS,WIDTH,height,
+    Window window = XCreateWindow(R->display,root,XPOS,YPOS,width,height,
                                   BORDER_PIXEL,R->depth,CopyFromParent,
                                   R->visual,R->valuemask,&R->attributes);
 
@@ -85,7 +86,7 @@ WinResources *init_resources(void)
 
     res->attributes.override_redirect = true;
     res->attributes.background_pixel  = 0x000000;
-    res->attributes.border_pixel      =0xfffdd0;
+    res->attributes.border_pixel      = 0xfffdd0;
     res->attributes.event_mask = ExposureMask
                                | VisibilityChangeMask
                                | SubstructureNotifyMask;
@@ -97,19 +98,18 @@ WinResources *init_resources(void)
     return(res);
 }
 
-void create_buttonlist(void)
+int create_buttonlist(int nmixers)
 {
+    unsigned int max_len = 0;
     struct mixer *m;
-    /* struct mix_dev *md; */
     char buffer[NAME_MAX];
-    int n;
-    
-    if((n=mixer_get_nmixers())<0)
-        errx(1,"No mixers present in system");
-    for(int i=0; i<n; ++i){
+
+    for(int i=0; i<nmixers; ++i){
         mixer_get_path(buffer, sizeof(buffer), i);
 
         if((m=mixer_open(buffer))==NULL) continue;
+
+        max_len = (strlen(m->ci.longname)>max_len?strlen(m->ci.longname):max_len);
 
         printf("%s\n", m->name);
         printf("  - %s\n", m->ci.shortname);
@@ -117,6 +117,8 @@ void create_buttonlist(void)
 
         (void)mixer_close(m);
     }    
+
+    return(max_len);
 }
 
 #endif
