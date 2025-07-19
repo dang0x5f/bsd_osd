@@ -5,17 +5,78 @@
 #include <mixer.h>
 
 int osd_outmixer(void);         // Driver function
-void *init_parameters(void);    // Setup window essentials
 void *create_mixerlist(void);   // Retrieve list of mixer devices
 void get_defaultunit(void);     
 void set_defaultunit(void);
-void *create_buttonlist(void);   
+void create_buttonlist(void);   
+
+typedef struct  {
+    Display *display;
+    int screen_num;
+    Colormap colormap;
+    int depth;
+    Visual *visual;
+    XSetWindowAttributes attributes;
+    int valuemask;
+} WinResources;
 
 #endif
 
 #ifdef OSD_OUTMIXER_IMPLEMENTATION
 
+#define XPOS 0
+#define YPOS 0
+#define WIDTH 300
+#define HEIGHT 400
+#define BORDER_PIXEL 2
+
+WinResources *init_resources(void);    // Setup window essentials
+
 int osd_outmixer(void)
+{
+    WinResources *R = init_resources();
+    
+    Window root = DefaultRootWindow(R->display);
+    Window window = XCreateWindow(R->display,root,XPOS,YPOS,WIDTH,HEIGHT,
+                                  BORDER_PIXEL,R->depth,CopyFromParent,
+                                  R->visual,R->valuemask,&R->attributes);
+
+    XMapWindow(R->display,window);
+    XSync(R->display,false);
+    
+    while(1){
+
+    }
+
+    return(EXIT_SUCCESS);
+}
+
+
+WinResources *init_resources(void)
+{
+    WinResources *res = malloc(sizeof(WinResources));
+
+    res->display    = XOpenDisplay(NULL);
+    res->screen_num = DefaultScreen(res->display);
+    res->colormap   = DefaultColormap(res->display,res->screen_num);
+    res->depth      = DefaultDepth(res->display,res->screen_num);
+    res->visual     = DefaultVisual(res->display,res->screen_num);
+
+    res->attributes.override_redirect = true;
+    res->attributes.background_pixel  = 0x000000;
+    res->attributes.border_pixel      =0xfffdd0;
+    res->attributes.event_mask = ExposureMask
+                               | VisibilityChangeMask
+                               | SubstructureNotifyMask;
+    res->valuemask = CWOverrideRedirect
+                   | CWBackPixel
+                   | CWEventMask
+                   | CWBorderPixel;
+
+    return(res);
+}
+
+void create_buttonlist(void)
 {
     struct mixer *m;
     struct mix_dev *md;
@@ -35,8 +96,6 @@ int osd_outmixer(void)
 
         (void)mixer_close(m);
     }    
-
-    return(EXIT_SUCCESS);
 }
 
 #endif
