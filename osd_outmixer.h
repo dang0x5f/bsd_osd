@@ -18,6 +18,8 @@ typedef struct  {
     Visual *visual;
     XSetWindowAttributes attributes;
     int valuemask;
+    int width;
+    int height;
 } WinResources;
 
 #endif
@@ -32,12 +34,31 @@ typedef struct  {
 
 WinResources *init_resources(void);    // Setup window essentials
 
+char *font_name = "Deja Vu Sans Mono:pixelsize=20";
+XftFont *font_setup2(Display *display, int screen_num)
+{
+    XftFont *xftfont = XftFontOpenName(display,screen_num,font_name);
+    if(!xftfont){
+        perror("XftFontOpenName() error\n");
+        exit(EXIT_FAILURE);
+    }
+    return(xftfont);
+}
+
 int osd_outmixer(void)
 {
     WinResources *R = init_resources();
+
+    XftFont *font = font_setup2(R->display,R->screen_num);
+
+    int nmixers;
+    if((nmixers=mixer_get_nmixers())<0)
+        errx(1,"No mixers present in system");
+
+    int height = (nmixers*2)*font->height;
     
     Window root = DefaultRootWindow(R->display);
-    Window window = XCreateWindow(R->display,root,XPOS,YPOS,WIDTH,HEIGHT,
+    Window window = XCreateWindow(R->display,root,XPOS,YPOS,WIDTH,height,
                                   BORDER_PIXEL,R->depth,CopyFromParent,
                                   R->visual,R->valuemask,&R->attributes);
 
@@ -79,7 +100,7 @@ WinResources *init_resources(void)
 void create_buttonlist(void)
 {
     struct mixer *m;
-    struct mix_dev *md;
+    /* struct mix_dev *md; */
     char buffer[NAME_MAX];
     int n;
     
