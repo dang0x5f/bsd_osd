@@ -8,6 +8,9 @@
 #include <X11/Xlib.h>
 #include <X11/Xft/Xft.h>
 
+#define OSD_COMMON_IMPLEMENTATION
+#include "osd_common.h"
+
 #define OSD_VOLUME_IMPLEMENTATION
 #include "osd_volume.h"
 

@@ -3,12 +3,19 @@
 
 #include <sys/sysctl.h>
 #include <mixer.h>
+#include "osd_button.h"
 
 int osd_outmixer(void);         // Driver function
 void *create_mixerlist(void);   // Retrieve list of mixer devices
 void get_defaultunit(void);     
 void set_defaultunit(void);
-int create_buttonlist(int);   
+
+typedef osd_button Button;
+
+typedef struct {
+    Button *first;
+    size_t length;
+} Button_List;
 
 typedef struct  {
     Display *display;
@@ -33,35 +40,41 @@ typedef struct  {
 #define BORDER_PIXEL 2
 
 WinResources *init_resources(void);    // Setup window essentials
+Button_List create_buttonlist(int);   
 
 char *font_name = "Deja Vu Sans Mono:pixelsize=12";
-XftFont *font_setup2(Display *display, int screen_num)
-{
-    XftFont *xftfont = XftFontOpenName(display,screen_num,font_name);
-    if(!xftfont){
-        perror("XftFontOpenName() error\n");
-        exit(EXIT_FAILURE);
-    }
-    return(xftfont);
-}
+/* XftFont *font_setup2(Display *display, int screen_num) */
+/* { */
+/*     XftFont *xftfont = XftFontOpenName(display,screen_num,font_name); */
+/*     if(!xftfont){ */
+/*         perror("XftFontOpenName() error\n"); */
+/*         exit(EXIT_FAILURE); */
+/*     } */
+/*     return(xftfont); */
+/* } */
 
 int osd_outmixer(void)
 {
     WinResources *R = init_resources();
 
-    XftFont *font = font_setup2(R->display,R->screen_num);
+    XftFont *font = font_setup(R->display,R->screen_num,font_name);
 
     int nmixers;
     if((nmixers=mixer_get_nmixers())<0)
         errx(1,"No mixers present in system");
 
-    int width = create_buttonlist(nmixers) * font->max_advance_width;
+    Button_List button_list;
+    button_list = create_buttonlist(nmixers);
+
+    int width =  font->max_advance_width;
     int height = (nmixers*2)*font->height;
     
     Window root = DefaultRootWindow(R->display);
     Window window = XCreateWindow(R->display,root,XPOS,YPOS,width,height,
                                   BORDER_PIXEL,R->depth,CopyFromParent,
                                   R->visual,R->valuemask,&R->attributes);
+
+    
 
     XMapWindow(R->display,window);
     XSync(R->display,false);
@@ -98,8 +111,10 @@ WinResources *init_resources(void)
     return(res);
 }
 
-int create_buttonlist(int nmixers)
+Button_List create_buttonlist(int nmixers)
 {
+    Button_List list;
+
     unsigned int max_len = 0;
     struct mixer *m;
     char buffer[NAME_MAX];
@@ -109,8 +124,7 @@ int create_buttonlist(int nmixers)
 
         if((m=mixer_open(buffer))==NULL) continue;
 
-        max_len = (strlen(m->ci.longname)>max_len?strlen(m->ci.longname):max_len);
-
+         
         printf("%s\n", m->name);
         printf("  - %s\n", m->ci.shortname);
         printf("  - %s\n", m->ci.longname);
@@ -118,7 +132,11 @@ int create_buttonlist(int nmixers)
         (void)mixer_close(m);
     }    
 
-    return(max_len);
+    return(list);
 }
+        /* max_len = (strlen(m->ci.longname)>max_len?strlen(m->ci.longname):max_len); */
+        /* printf("%s\n", m->name); */
+        /* printf("  - %s\n", m->ci.shortname); */
+        /* printf("  - %s\n", m->ci.longname); */
 
 #endif
