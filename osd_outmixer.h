@@ -43,15 +43,6 @@ WinResources *init_resources(void);    // Setup window essentials
 Button_List create_buttonlist(int);   
 
 char *font_name = "Deja Vu Sans Mono:pixelsize=12";
-/* XftFont *font_setup2(Display *display, int screen_num) */
-/* { */
-/*     XftFont *xftfont = XftFontOpenName(display,screen_num,font_name); */
-/*     if(!xftfont){ */
-/*         perror("XftFontOpenName() error\n"); */
-/*         exit(EXIT_FAILURE); */
-/*     } */
-/*     return(xftfont); */
-/* } */
 
 int osd_outmixer(void)
 {
