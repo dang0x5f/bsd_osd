@@ -103,34 +103,34 @@ create_button(Display *display, Window *parent, int screen_num, int depth,
 
     XftDraw *draw = XftDrawCreate(display, subwin, visual, *colormap);
 
-    /* osd_button *button = malloc(sizeof(osd_button)); */ 
+    osd_button *button = malloc(sizeof(osd_button)); 
 
-    /* XftColor color; */
-    /* if(!isvalid_color(foreground)) foreground = "#AA0FC0"; */
-    /* XftColorAllocName(display,visual,*colormap,foreground,&color); */
-    /* button->foreground = color; */
-    /* button->fg = color; */
+    XftColor color;
+    if(!isvalid_color(foreground)) foreground = "#AA0FC0";
+    XftColorAllocName(display,visual,*colormap,foreground,&color);
+    button->foreground = color;
+    button->fg = color;
 
-    /* char inverted[8]={'\0'}; */
-    /* invert_color(foreground,inverted); */
-    /* XftColorAllocName(display,visual,*colormap,inverted,&color); */
-    /* button->inverted_fg = color; */
+    char inverted[8]={'\0'};
+    invert_color(foreground,inverted);
+    XftColorAllocName(display,visual,*colormap,inverted,&color);
+    button->inverted_fg = color;
 
-    /* button->draw = draw; */
-    /* button->xftfont = xftfont; */
-    /* button->background = background; */
-    /* button->border = border; */
-    /* button->width = width; */
-    /* button->height = height; */
-    /* button->x = (width/2)-((xftfont->max_advance_width * label_len)/2); */
-    /* button->y = xftfont->height+(padding/2);//(xftfont->ascent+xftfont->descent); */
-    /* button->label_len = label_len; */
-    /* button->label = malloc(label_len+1); */
-    /* button->label = label; */
-    /* button->buttonRelease = (cb_func?cb_func:die); */
+    button->draw = draw;
+    button->xftfont = xftfont;
+    button->background = background;
+    button->border = border;
+    button->width = width;
+    button->height = height;
+    button->x = (width/2)-((xftfont->max_advance_width * label_len)/2);
+    button->y = xftfont->height+(padding/2);//(xftfont->ascent+xftfont->descent);
+    button->label_len = label_len;
+    button->label = malloc(label_len+1);
+    button->label = label;
+    button->buttonRelease = (cb_func?cb_func:die);
 
-    /* XSaveContext(display,subwin,context,(XPointer)button); */
-    /* XMapWindow(display,subwin); */
+    XSaveContext(display,subwin,context,(XPointer)button);
+    XMapWindow(display,subwin);
 }
 
 void expose_button(osd_button *button, XEvent *event)
