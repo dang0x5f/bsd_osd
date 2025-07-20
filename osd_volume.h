@@ -45,17 +45,6 @@ char *def_line1 = "VOLUME              "; // len=SZ
 char *muted_str = "MUTED";
 char *font_pattern = "Deja Vu Sans Mono:pixelsize=20";
 
-
-XftFont *font_setup(Display *display, int screen_num)
-{
-    XftFont *xftfont = XftFontOpenName(display, screen_num, font_pattern);
-    if(!xftfont){
-        perror("XftFontOpenName() error\n");
-        exit(EXIT_FAILURE);
-    }
-    return(xftfont);
-}
-
 void osd_volume(char operation)
 {
     change_volume(operation);
@@ -92,7 +81,7 @@ void osd_volume(char operation)
     root        = DefaultRootWindow(display);
     screen_num  = DefaultScreen(display);
     colormap    = DefaultColormap(display,screen_num);
-    xftfont     = font_setup(display,screen_num);
+    xftfont     = font_setup(display,screen_num,font_pattern);
     depth       = DefaultDepth(display,screen_num);
     visual      = DefaultVisual(display,screen_num);
     scrn_width  = XDisplayWidth(display,screen_num);

@@ -8,8 +8,14 @@
 #include <X11/Xlib.h>
 #include <X11/Xft/Xft.h>
 
+#define OSD_COMMON_IMPLEMENTATION
+#include "osd_common.h"
+
 #define OSD_VOLUME_IMPLEMENTATION
 #include "osd_volume.h"
+
+#define OSD_OUTMIXER_IMPLEMENTATION
+#include "osd_outmixer.h"
 
 void usage(char *progname)
 {
@@ -23,10 +29,13 @@ int main(int argc, char **argv)
     if(argc < 2) usage(argv[0]);
 
     int opt;
-    while((opt=getopt(argc,argv,"v:h?")) != -1){
+    while((opt=getopt(argc,argv,"m:v:h?")) != -1){
         switch(opt){
             case 'v':
                 osd_volume(optarg[0]);
+                break;
+            case 'm':
+                osd_outmixer();
                 break;
             case 'h':
             case '?':
