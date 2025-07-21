@@ -95,7 +95,7 @@ create_button(Display *display, Window *parent, int screen_num, int depth,
         .border_pixel = border,
         .event_mask = def_eventmask,
     };
-    int padding = 60;
+    int padding = 5;
     int height = (xftfont->height+xftfont->descent+padding);
 
     Window subwin = XCreateWindow(display,*parent,x,y,width,height,2, depth,

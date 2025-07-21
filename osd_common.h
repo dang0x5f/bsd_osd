@@ -1,6 +1,8 @@
 #ifndef OSD_COMMON_H
 #define OSD_COMMON_H
 
+#define MAX(a,b) ((a)>(b)?(a):(b))
+
 XftFont *font_setup(Display*,int,char*);
 
 #endif // OSD_COMMON_H

@@ -11,6 +11,7 @@ int osd_outmixer(void);         // Driver function
 void *create_mixerlist(void);   // Retrieve list of mixer devices
 void get_defaultunit(void);     
 void set_defaultunit(void);
+char* get_mixer_info(int*,int*);
 
 typedef osd_button Button;
 
@@ -46,6 +47,40 @@ Button_List create_buttonlist(int);
 
 char *font_name = "Deja Vu Sans Mono:pixelsize=20";
 
+/* TODO:  get rid of malloc / return char* */
+char* get_mixer_info(int *nmixers, int *max_name_len)
+{
+    *nmixers = 0;
+    *max_name_len = 0;
+
+    if((*nmixers=mixer_get_nmixers())<0)
+        errx(1,"No mixers present in system");
+    
+    struct mixer *m;
+    char *longname = NULL;
+    char buffer[NAME_MAX];
+
+    for(int i=0; i<*nmixers; ++i){
+        mixer_get_path(buffer, sizeof(buffer), i);
+
+        if((m=mixer_open(buffer))==NULL) continue;
+
+        if(strlen(m->ci.longname)>*max_name_len){
+            *max_name_len = MAX(*max_name_len,strlen(m->ci.longname));
+            longname = malloc(sizeof(char)*(*max_name_len)+1);
+            strncpy(longname,m->ci.longname,*max_name_len);
+        }
+         
+        /* printf("%d\n", *max_name_len); */
+        /* printf("%s\n", m->name); */
+        /* printf("  - %s\n", m->ci.shortname); */
+        /* printf("  - %s\n", m->ci.longname); */
+
+        (void)mixer_close(m);
+    }    
+    return(longname);
+}
+
 int osd_outmixer(void)
 {
     XContext context = XUniqueContext();
@@ -54,14 +89,17 @@ int osd_outmixer(void)
 
     XftFont *font = font_setup(R->display,R->screen_num,font_name);
 
-    int nmixers;
-    if((nmixers=mixer_get_nmixers())<0)
-        errx(1,"No mixers present in system");
+    int nmixers, max_name_len;
+    char *name = get_mixer_info(&nmixers,&max_name_len);
+    printf("%s\n",name);
+    /* if((nmixers=mixer_get_nmixers())<0) */
+    /*     errx(1,"No mixers present in system"); */
+    printf("%d\n",max_name_len);
 
     Button_List button_list;
     button_list = create_buttonlist(nmixers);
 
-    int width =  font->max_advance_width      * 10;
+    int width =  font->max_advance_width * max_name_len;
     int height = (nmixers*2)*font->height;
     
     Window root = DefaultRootWindow(R->display);
@@ -69,11 +107,11 @@ int osd_outmixer(void)
                                   BORDER_PIXEL,R->depth,CopyFromParent,
                                   R->visual,R->valuemask,&R->attributes);
 
-    int w = font->max_advance_width*5;
+    /* int w = font->max_advance_width * max_name_len; */
     Window *sub = create_button(R->display, &window, R->screen_num, R->depth,
-                                R->visual, context, 0,0, w, &R->colormap,
-                                2, 0x000000, "#00FF00", "label", 5,  NULL,
-                                font);
+                                R->visual, context, 0,0, width, &R->colormap,
+                                0xffffff, 0x000000, "#00FF00", name, max_name_len,  
+                                NULL, font);
     
 
     XMapWindow(R->display,window);
