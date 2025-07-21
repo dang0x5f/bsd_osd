@@ -11,7 +11,6 @@ int osd_outmixer(void);         // Driver function
 void *create_mixerlist(void);   // Retrieve list of mixer devices
 void get_defaultunit(void);     
 void set_defaultunit(void);
-char* get_mixer_info(int*,int*);
 
 typedef osd_button Button;
 
@@ -44,42 +43,10 @@ typedef struct  {
 
 WinResources *init_resources(void);    // Setup window essentials
 Button_List create_buttonlist(int);   
+char* get_mixer_info(int*,int*);
 
 char *font_name = "Deja Vu Sans Mono:pixelsize=20";
 
-/* TODO:  get rid of malloc / return char* */
-char* get_mixer_info(int *nmixers, int *max_name_len)
-{
-    *nmixers = 0;
-    *max_name_len = 0;
-
-    if((*nmixers=mixer_get_nmixers())<0)
-        errx(1,"No mixers present in system");
-    
-    struct mixer *m;
-    char *longname = NULL;
-    char buffer[NAME_MAX];
-
-    for(int i=0; i<*nmixers; ++i){
-        mixer_get_path(buffer, sizeof(buffer), i);
-
-        if((m=mixer_open(buffer))==NULL) continue;
-
-        if(strlen(m->ci.longname)>*max_name_len){
-            *max_name_len = MAX(*max_name_len,strlen(m->ci.longname));
-            longname = malloc(sizeof(char)*(*max_name_len)+1);
-            strncpy(longname,m->ci.longname,*max_name_len);
-        }
-         
-        /* printf("%d\n", *max_name_len); */
-        /* printf("%s\n", m->name); */
-        /* printf("  - %s\n", m->ci.shortname); */
-        /* printf("  - %s\n", m->ci.longname); */
-
-        (void)mixer_close(m);
-    }    
-    return(longname);
-}
 
 int osd_outmixer(void)
 {
@@ -100,17 +67,19 @@ int osd_outmixer(void)
     button_list = create_buttonlist(nmixers);
 
     int width =  font->max_advance_width * max_name_len;
-    int height = (nmixers*2)*font->height;
+    /* int height = (nmixers*2)*font->height; */
+    int height = font->ascent+font->descent;
     
     Window root = DefaultRootWindow(R->display);
-    Window window = XCreateWindow(R->display,root,XPOS,YPOS,width,height,
+    // width  + (BORDER*2)                  -  account for button border
+    // height + (BORDER*2) + (BORDER*2)     -  account for button border .. 2 times works?
+    Window window = XCreateWindow(R->display,root,XPOS,YPOS,width+(BORDER_PIXEL*2),height+(BORDER_PIXEL*2)+(BORDER_PIXEL*2),
                                   BORDER_PIXEL,R->depth,CopyFromParent,
                                   R->visual,R->valuemask,&R->attributes);
 
-    /* int w = font->max_advance_width * max_name_len; */
     Window *sub = create_button(R->display, &window, R->screen_num, R->depth,
                                 R->visual, context, 0,0, width, &R->colormap,
-                                0xffffff, 0x000000, "#00FF00", name, max_name_len,  
+                                0xffaa5f, 0x000000, "#00FF00", name, max_name_len,  
                                 NULL, font);
     
 
@@ -191,6 +160,35 @@ Button_List create_buttonlist(int nmixers)
     }    
 
     return(list);
+}
+
+/* TODO:  get rid of malloc / return char* */
+char* get_mixer_info(int *nmixers, int *max_name_len)
+{
+    *nmixers = 0;
+    *max_name_len = 0;
+
+    if((*nmixers=mixer_get_nmixers())<0)
+        errx(1,"No mixers present in system");
+    
+    struct mixer *m;
+    char *longname = NULL;
+    char buffer[NAME_MAX];
+
+    for(int i=0; i<*nmixers; ++i){
+        mixer_get_path(buffer, sizeof(buffer), i);
+
+        if((m=mixer_open(buffer))==NULL) continue;
+
+        if(strlen(m->ci.longname)>*max_name_len){
+            *max_name_len = MAX(*max_name_len,strlen(m->ci.longname));
+            longname = malloc(sizeof(char)*(*max_name_len)+1);
+            strncpy(longname,m->ci.longname,*max_name_len);
+        }
+         
+        (void)mixer_close(m);
+    }    
+    return(longname);
 }
         /* max_len = (strlen(m->ci.longname)>max_len?strlen(m->ci.longname):max_len); */
         /* printf("%s\n", m->name); */
