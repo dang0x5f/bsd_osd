@@ -14,8 +14,14 @@ void set_defaultunit(void);
 
 typedef osd_button Button;
 
+typedef struct node_t{
+    Window win_id;
+    int mixer_id;
+    struct node_t *next;
+} Button_node;
+
 typedef struct {
-    Button *first;
+    Button_node *first;
     size_t length;
 } Button_List;
 
@@ -148,7 +154,7 @@ WinResources *init_resources(void)
 Button_List create_buttonlist(WinResources *R, Window parent, XContext *context, 
                               int width, int height, int nmixers, XftFont *font)
 {
-    Button_List list = { .first = NULL, .length = nmixers };
+    Button_List list = { .first = NULL, .length = 0 };
 
     struct mixer *m;
     char buffer[NAME_MAX];
@@ -165,10 +171,23 @@ Button_List create_buttonlist(WinResources *R, Window parent, XContext *context,
                                       *context, 0, height*i, width, &R->colormap, 
                                       0xffaa5f, 0x000000, "#00FF00", name, 
                                       name_len, NULL, font);
-         
-        /* printf("%s\n", m->name); */
-        /* printf("  - %s\n", m->ci.shortname); */
-        /* printf("  - %s\n", m->ci.longname); */
+
+        /* TODO: free on close */
+        Button_node *node = malloc(sizeof(Button_node));
+        node->win_id = subwin;
+        node->mixer_id = i;
+        node->next = NULL;
+
+        if(list.first == NULL){
+            list.first = node;
+        }else{
+            Button_node *iter = list.first;
+            while(iter->next)
+                iter = iter->next;
+            iter->next = node;
+        }
+
+        list.length += 1;
 
         (void)mixer_close(m);
     }    
@@ -204,7 +223,6 @@ char* get_mixer_info(size_t *nmixers, size_t *max_name_len)
     }    
     return(longname);
 }
-        /* max_len = (strlen(m->ci.longname)>max_len?strlen(m->ci.longname):max_len); */
         /* printf("%s\n", m->name); */
         /* printf("  - %s\n", m->ci.shortname); */
         /* printf("  - %s\n", m->ci.longname); */
