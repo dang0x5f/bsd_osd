@@ -58,6 +58,7 @@ int osd_outmixer(void)
 
     size_t nmixers, max_name_len;
     char *name = get_mixer_info(&nmixers,&max_name_len);
+    printf("%zu\n",nmixers);
     /* printf("%s\n",name); */
     /* if((nmixers=mixer_get_nmixers())<0) */
     /*     errx(1,"No mixers present in system"); */
@@ -157,11 +158,13 @@ Button_List create_buttonlist(WinResources *R, Window parent, XContext *context,
 
         if((m=mixer_open(buffer))==NULL) continue;
 
-        
+        size_t name_len = strlen(m->ci.longname);
+        char *name = malloc(sizeof(char)*name_len);
+        strncpy(name,m->ci.longname,name_len);
         Window subwin = create_button(R->display, &parent, R->depth, R->visual, 
                                       *context, 0, height*i, width, &R->colormap, 
-                                      0xffaa5f, 0x000000, "#00FF00", m->ci.longname, 
-                                      strlen(m->ci.longname),  NULL, font);
+                                      0xffaa5f, 0x000000, "#00FF00", name, 
+                                      name_len, NULL, font);
          
         /* printf("%s\n", m->name); */
         /* printf("  - %s\n", m->ci.shortname); */
