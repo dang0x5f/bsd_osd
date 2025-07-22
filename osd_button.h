@@ -37,7 +37,7 @@ typedef struct {
     Callback buttonRelease;
 } osd_button;
 
-Window *create_button(Display*,Window*,int,int,Visual*,XContext,int,int,int,Colormap*,int,int,char*,char*,size_t,Callback,XftFont*);
+Window create_button(Display*,Window*,int,Visual*,XContext,int,int,int,Colormap*,int,int,char*,char*,size_t,Callback,XftFont*);
 void expose_button(osd_button*,XEvent*);
 void config_button(osd_button*,XEvent*);
 void enter_button(osd_button*,XEvent*);
@@ -63,7 +63,7 @@ void invert_color(char *in, char *out)
 {
     size_t sz = 7;
     out[0]='#';
-    for(int i=1; i<sz; ++i)
+    for(size_t i=1; i<sz; ++i)
         out[i] = invert_hex_char(in[i]);
 }
 
@@ -82,11 +82,11 @@ bool isvalid_color(char *hex)
 }
 
 // osd_button 
-Window *
-create_button(Display *display, Window *parent, int screen_num, int depth, 
-              Visual *visual, XContext context, int x, int y, int width, 
-              Colormap *colormap, int border, int background, char *foreground, 
-              char *label, size_t label_len, Callback cb_func, XftFont *xftfont)
+Window
+create_button(Display *display, Window *parent, int depth, Visual *visual, 
+              XContext context, int x, int y, int width, Colormap *colormap, 
+              int border, int background, char *foreground, char *label, 
+              size_t label_len, Callback cb_func, XftFont *xftfont)
 {
     int class = InputOutput;
     int valuemask = def_valuemask;
@@ -131,14 +131,12 @@ create_button(Display *display, Window *parent, int screen_num, int depth,
 
     XSaveContext(display,subwin,context,(XPointer)button);
     XMapWindow(display,subwin);
+
+    return(subwin);
 }
 
 void expose_button(osd_button *button, XEvent *event)
 {
-    // TODO: keep as backup
-    // XDrawString(event->xany.display, event->xany.window,
-    //             DefaultGC(event->xany.display, DefaultScreen(event->xany.display)),
-    //             button->x, button->y, button->label, button->label_len);
     XftDrawStringUtf8(button->draw,&(button->foreground),button->xftfont,
                       button->x, button->y, (FcChar8*)button->label, button->label_len);
 }

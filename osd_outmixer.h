@@ -42,8 +42,8 @@ typedef struct  {
 #define BORDER_PIXEL 2
 
 WinResources *init_resources(void);    // Setup window essentials
-Button_List create_buttonlist(int);   
-char* get_mixer_info(int*,int*);
+Button_List create_buttonlist(WinResources*,Window,XContext*,int,int,int,XftFont*);   
+char* get_mixer_info(size_t*,size_t*);
 
 char *font_name = "Deja Vu Sans Mono:pixelsize=20";
 
@@ -56,32 +56,38 @@ int osd_outmixer(void)
 
     XftFont *font = font_setup(R->display,R->screen_num,font_name);
 
-    int nmixers, max_name_len;
+    size_t nmixers, max_name_len;
     char *name = get_mixer_info(&nmixers,&max_name_len);
-    printf("%s\n",name);
+    /* printf("%s\n",name); */
     /* if((nmixers=mixer_get_nmixers())<0) */
     /*     errx(1,"No mixers present in system"); */
-    printf("%d\n",max_name_len);
+    /* printf("%d\n",max_name_len); */
 
-    Button_List button_list;
-    button_list = create_buttonlist(nmixers);
 
-    int width =  font->max_advance_width * max_name_len;
+
     /* int height = (nmixers*2)*font->height; */
-    int height = font->ascent+font->descent;
+
+
+    int width = font->max_advance_width * max_name_len+(BORDER_PIXEL*2);
+    int height = (font->ascent+font->descent+(BORDER_PIXEL*2)+(BORDER_PIXEL*2))*(nmixers-1);
+
     
     Window root = DefaultRootWindow(R->display);
+    /* TODO: make less messy, and add remarks why */
     // width  + (BORDER*2)                  -  account for button border
     // height + (BORDER*2) + (BORDER*2)     -  account for button border .. 2 times works?
-    Window window = XCreateWindow(R->display,root,XPOS,YPOS,width+(BORDER_PIXEL*2),height+(BORDER_PIXEL*2)+(BORDER_PIXEL*2),
+    Window window = XCreateWindow(R->display,root,XPOS,YPOS,width,height,
                                   BORDER_PIXEL,R->depth,CopyFromParent,
                                   R->visual,R->valuemask,&R->attributes);
 
-    Window *sub = create_button(R->display, &window, R->screen_num, R->depth,
-                                R->visual, context, 0,0, width, &R->colormap,
-                                0xffaa5f, 0x000000, "#00FF00", name, max_name_len,  
-                                NULL, font);
-    
+    int width1 =  font->max_advance_width * max_name_len;
+    int height1 = font->ascent+font->descent+(BORDER_PIXEL*2)+(BORDER_PIXEL*2);
+        /* Window subwin = create_button(R->display, &window, R->depth, R->visual, */ 
+        /*                               context, 0,0, width1, &R->colormap, */ 
+        /*                               0xffaa5f, 0x000000, "#00FF00", name, */ 
+        /*                               max_name_len,  NULL, font); */
+    Button_List button_list;
+    button_list = create_buttonlist(R,window,&context,width1,height1,nmixers,font);
 
     XMapWindow(R->display,window);
     XSync(R->display,false);
@@ -138,11 +144,11 @@ WinResources *init_resources(void)
     return(res);
 }
 
-Button_List create_buttonlist(int nmixers)
+Button_List create_buttonlist(WinResources *R, Window parent, XContext *context, 
+                              int width, int height, int nmixers, XftFont *font)
 {
-    Button_List list;
+    Button_List list = { .first = NULL, .length = nmixers };
 
-    unsigned int max_len = 0;
     struct mixer *m;
     char buffer[NAME_MAX];
 
@@ -151,10 +157,15 @@ Button_List create_buttonlist(int nmixers)
 
         if((m=mixer_open(buffer))==NULL) continue;
 
+        
+        Window subwin = create_button(R->display, &parent, R->depth, R->visual, 
+                                      *context, 0, height*i, width, &R->colormap, 
+                                      0xffaa5f, 0x000000, "#00FF00", m->ci.longname, 
+                                      strlen(m->ci.longname),  NULL, font);
          
-        printf("%s\n", m->name);
-        printf("  - %s\n", m->ci.shortname);
-        printf("  - %s\n", m->ci.longname);
+        /* printf("%s\n", m->name); */
+        /* printf("  - %s\n", m->ci.shortname); */
+        /* printf("  - %s\n", m->ci.longname); */
 
         (void)mixer_close(m);
     }    
@@ -163,7 +174,7 @@ Button_List create_buttonlist(int nmixers)
 }
 
 /* TODO:  get rid of malloc / return char* */
-char* get_mixer_info(int *nmixers, int *max_name_len)
+char* get_mixer_info(size_t *nmixers, size_t *max_name_len)
 {
     *nmixers = 0;
     *max_name_len = 0;
@@ -175,7 +186,7 @@ char* get_mixer_info(int *nmixers, int *max_name_len)
     char *longname = NULL;
     char buffer[NAME_MAX];
 
-    for(int i=0; i<*nmixers; ++i){
+    for(size_t i=0; i<*nmixers; ++i){
         mixer_get_path(buffer, sizeof(buffer), i);
 
         if((m=mixer_open(buffer))==NULL) continue;

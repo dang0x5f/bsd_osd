@@ -4,4 +4,4 @@ TODO
   - centralized xftcolors
 
 - osd_outmixer.h
-  - width and height need to account for borders and padding
+  - width and height account for padding
