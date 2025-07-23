@@ -49,7 +49,7 @@ WinResources *init_resources(void);    // Setup window essentials
 Button_List create_buttonlist(WinResources*,Window,XContext*,int,int,int,XftFont*);   
 char* get_mixer_info(size_t*,size_t*);
 int get_defaultunit(void);     
-void set_defaultunit(Window,Button_List);
+void set_defaultunit(void*,void*);
 
 char *font_name = "Deja Vu Sans Mono:pixelsize=16";
 
@@ -122,7 +122,7 @@ int osd_outmixer(void)
                 if(btn) leave_button(btn,&ev);
                 break;
             case ButtonRelease:
-                if(btn) btn->buttonRelease(btn->cbdata);
+                if(btn) btn->buttonRelease(&ev.xany.window,&button_list);
                 break;
         }
     }
@@ -174,7 +174,7 @@ Button_List create_buttonlist(WinResources *R, Window parent, XContext *context,
         Window subwin = create_button(R->display, &parent, R->depth, R->visual, 
                                       *context, 0, height*i+(i*3), width, &R->colormap, 
                                       0x333333, 0xbbbbbb, "#000000", name, 
-                                      name_len, NULL, font);
+                                      name_len, set_defaultunit, font);
 
         /* TODO: free on close */
         Button_node *node = malloc(sizeof(Button_node));
@@ -239,6 +239,21 @@ int get_defaultunit(void)
         exit(EXIT_FAILURE);
     }
     return(input);
+}
+
+void set_defaultunit(void *win_id, void *list)
+{
+    Window *w = (Window*)win_id;
+    Button_List *bl = (Button_List*)list;
+
+    Button_node *node = bl->first;
+    while(node->next){
+        if(node->win_id == *w) break;
+        
+        node = node->next;
+    }
+
+    printf("%d\n", node->mixer_id);
 }
 
         /* printf("%s\n", m->name); */
