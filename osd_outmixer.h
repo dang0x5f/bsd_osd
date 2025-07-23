@@ -35,6 +35,11 @@ typedef struct  {
     int height;
 } WinResources;
 
+typedef struct {
+    Window win_id;
+    Button_List list;
+} UnitData;
+
 #endif
 
 #ifdef OSD_OUTMIXER_IMPLEMENTATION
@@ -49,7 +54,7 @@ WinResources *init_resources(void);    // Setup window essentials
 Button_List create_buttonlist(WinResources*,Window,XContext*,int,int,int,XftFont*);   
 char* get_mixer_info(size_t*,size_t*);
 int get_defaultunit(void);     
-void set_defaultunit(void*,void*);
+void set_defaultunit(void*);
 
 char *font_name = "Deja Vu Sans Mono:pixelsize=16";
 
@@ -122,7 +127,13 @@ int osd_outmixer(void)
                 if(btn) leave_button(btn,&ev);
                 break;
             case ButtonRelease:
-                if(btn) btn->buttonRelease(&ev.xany.window,&button_list);
+                if(btn){
+                    UnitData cbdata = { 
+                        .win_id = ev.xany.window, 
+                        .list = button_list 
+                    };
+                    btn->buttonRelease(&cbdata);
+                }
                 break;
         }
     }
@@ -241,14 +252,15 @@ int get_defaultunit(void)
     return(input);
 }
 
-void set_defaultunit(void *win_id, void *list)
+void set_defaultunit(void *unitdata)
 {
-    Window *w = (Window*)win_id;
-    Button_List *bl = (Button_List*)list;
+    UnitData *ud = (UnitData*)unitdata;
+    Window win_id = ud->win_id;
+    Button_List list = ud->list;
 
-    Button_node *node = bl->first;
+    Button_node *node = list.first;
     while(node->next){
-        if(node->win_id == *w) break;
+        if(node->win_id == win_id) break;
         
         node = node->next;
     }

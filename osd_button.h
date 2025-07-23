@@ -16,7 +16,7 @@ static long def_eventmask =
     SubstructureNotifyMask
 );
 
-typedef void (*Callback)(void *cbdata1,void *cbdata2);
+typedef void (*Callback)(void *cbdata);
 
 typedef struct {
     Window win;
