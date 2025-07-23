@@ -9,8 +9,6 @@
 
 int osd_outmixer(void);         // Driver function
 void *create_mixerlist(void);   // Retrieve list of mixer devices
-void get_defaultunit(void);     
-void set_defaultunit(void);
 
 typedef osd_button Button;
 
@@ -50,8 +48,10 @@ typedef struct  {
 WinResources *init_resources(void);    // Setup window essentials
 Button_List create_buttonlist(WinResources*,Window,XContext*,int,int,int,XftFont*);   
 char* get_mixer_info(size_t*,size_t*);
+int get_defaultunit(void);     
+void set_defaultunit(Window,Button_List);
 
-char *font_name = "Deja Vu Sans Mono:pixelsize=18";
+char *font_name = "Deja Vu Sans Mono:pixelsize=16";
 
 
 int osd_outmixer(void)
@@ -100,6 +100,8 @@ int osd_outmixer(void)
 
     XMapWindow(R->display,window);
     XSync(R->display,false);
+
+    printf("%d\n",get_defaultunit());
     
     XEvent ev;
     while(1){
@@ -225,6 +227,20 @@ char* get_mixer_info(size_t *nmixers, size_t *max_name_len)
     }    
     return(longname);
 }
+
+int get_defaultunit(void)
+{
+    // TODO: input should either be initialized or checked before return
+    int input;
+    size_t ilen = sizeof(input);
+    // TODO: use errno
+    if(sysctlbyname("hw.snd.default_unit",&input,&ilen,NULL,0)==-1){
+        perror("sysctlbyname() error\n");
+        exit(EXIT_FAILURE);
+    }
+    return(input);
+}
+
         /* printf("%s\n", m->name); */
         /* printf("  - %s\n", m->ci.shortname); */
         /* printf("  - %s\n", m->ci.longname); */
