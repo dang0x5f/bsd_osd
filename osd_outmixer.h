@@ -51,7 +51,7 @@ WinResources *init_resources(void);    // Setup window essentials
 Button_List create_buttonlist(WinResources*,Window,XContext*,int,int,int,XftFont*);   
 char* get_mixer_info(size_t*,size_t*);
 
-char *font_name = "Deja Vu Sans Mono:pixelsize=20";
+char *font_name = "Deja Vu Sans Mono:pixelsize=18";
 
 
 int osd_outmixer(void)
@@ -65,25 +65,27 @@ int osd_outmixer(void)
     size_t nmixers, max_name_len;
     char *name = get_mixer_info(&nmixers,&max_name_len);
     printf("%zu\n",nmixers);
-    /* printf("%s\n",name); */
-    /* if((nmixers=mixer_get_nmixers())<0) */
-    /*     errx(1,"No mixers present in system"); */
-    /* printf("%d\n",max_name_len); */
-
-
 
     /* int height = (nmixers*2)*font->height; */
 
 
-    int width = font->max_advance_width * max_name_len+(BORDER_PIXEL*2);
+    int ypadding = 3;
+    int padding = 5;
+
+    int width = font->max_advance_width * max_name_len+(BORDER_PIXEL*2) + (padding*2);
     int height = (font->ascent+font->descent+(BORDER_PIXEL*2)+(BORDER_PIXEL*2))*(nmixers-1);
 
+    height += (ypadding*(nmixers-2));
+
+    int xpos = DisplayWidth(R->display,R->screen_num);
+    int ypos = DisplayHeight(R->display,R->screen_num);
+    ypos = (ypos/2)-(height/2);
     
     Window root = DefaultRootWindow(R->display);
     /* TODO: make less messy, and add remarks why */
     // width  + (BORDER*2)                  -  account for button border
     // height + (BORDER*2) + (BORDER*2)     -  account for button border .. 2 times works?
-    Window window = XCreateWindow(R->display,root,XPOS,YPOS,width,height,
+    Window window = XCreateWindow(R->display,root,XPOS,ypos,width,height,
                                   BORDER_PIXEL,R->depth,CopyFromParent,
                                   R->visual,R->valuemask,&R->attributes);
 
@@ -138,7 +140,7 @@ WinResources *init_resources(void)
     res->visual     = DefaultVisual(res->display,res->screen_num);
 
     res->attributes.override_redirect = true;
-    res->attributes.background_pixel  = 0x000000;
+    res->attributes.background_pixel  = 0xffffff;
     res->attributes.border_pixel      = 0xfffdd0;
     res->attributes.event_mask = ExposureMask
                                | VisibilityChangeMask
@@ -168,8 +170,8 @@ Button_List create_buttonlist(WinResources *R, Window parent, XContext *context,
         char *name = malloc(sizeof(char)*name_len);
         strncpy(name,m->ci.longname,name_len);
         Window subwin = create_button(R->display, &parent, R->depth, R->visual, 
-                                      *context, 0, height*i, width, &R->colormap, 
-                                      0xffaa5f, 0x000000, "#00FF00", name, 
+                                      *context, 0, height*i+(i*3), width, &R->colormap, 
+                                      0x333333, 0xbbbbbb, "#000000", name, 
                                       name_len, NULL, font);
 
         /* TODO: free on close */
