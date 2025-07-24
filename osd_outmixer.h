@@ -265,7 +265,11 @@ void set_defaultunit(void *unitdata)
         node = node->next;
     }
 
-    printf("%d\n", node->mixer_id);
+    int input,output=node->mixer_id;
+    size_t input_len=sizeof(input),output_len=sizeof(output);
+    sysctlbyname("hw.snd.default_unit",&input,&input_len,&output,output_len);
+
+    /* printf("%d\n", node->mixer_id); */
 }
 
         /* printf("%s\n", m->name); */
