@@ -107,9 +107,12 @@ int osd_outmixer(void)
     XSync(R->display,false);
 
     printf("%d\n",get_defaultunit());
+
+    XGrabKeyboard(R->display,window,true,GrabModeAsync,GrabModeAsync,CurrentTime);
     
+    bool running=true;
     XEvent ev;
-    while(1){
+    while(running){
         osd_button *btn = NULL;
         XNextEvent(R->display,&ev);
         XFindContext(ev.xany.display,ev.xany.window,context,(XPointer*)&btn);
@@ -135,8 +138,13 @@ int osd_outmixer(void)
                     btn->buttonRelease(&cbdata);
                 }
                 break;
+            case KeyPress:
+                break;
         }
+        if(ev.xkey.keycode == 9) running=false;
     }
+
+    XUngrabKeyboard(R->display,CurrentTime);
 
     return(EXIT_SUCCESS);
 }
@@ -156,6 +164,7 @@ WinResources *init_resources(void)
     res->attributes.background_pixel  = 0xffffff;
     res->attributes.border_pixel      = 0xfffdd0;
     res->attributes.event_mask = ExposureMask
+                               | KeyPressMask
                                | VisibilityChangeMask
                                | SubstructureNotifyMask;
     res->valuemask = CWOverrideRedirect
@@ -269,7 +278,7 @@ void set_defaultunit(void *unitdata)
     size_t input_len=sizeof(input),output_len=sizeof(output);
     sysctlbyname("hw.snd.default_unit",&input,&input_len,&output,output_len);
 
-    /* printf("%d\n", node->mixer_id); */
+    printf("%d\n", node->mixer_id);
 }
 
         /* printf("%s\n", m->name); */
