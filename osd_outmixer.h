@@ -139,9 +139,10 @@ int osd_outmixer(void)
                 }
                 break;
             case KeyPress:
+                KeySym keysym = XLookupKeysym(&ev.xkey,0);
+                if(keysym==XK_Escape || keysym==XK_q) running=false;
                 break;
         }
-        if(ev.xkey.keycode == 9) running=false;
     }
 
     XUngrabKeyboard(R->display,CurrentTime);
