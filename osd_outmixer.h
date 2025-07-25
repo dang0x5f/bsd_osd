@@ -15,6 +15,7 @@ typedef osd_button Button;
 typedef struct node_t{
     Window win_id;
     int mixer_id;
+    Button *btn;
     struct node_t *next;
 } Button_node;
 
@@ -111,6 +112,23 @@ int osd_outmixer(void)
 
     XGrabKeyboard(R->display,window,true,GrabModeAsync,GrabModeAsync,CurrentTime);
     
+    Button_node *iter = button_list.first;
+    while(1){
+        if(iter->mixer_id == button_list.default_mixer){
+            XSetWindowAttributes attributes;
+            attributes.background_pixel = iter->btn->border;
+            attributes.border_pixel = iter->btn->background;
+            (iter->btn->foreground) = (iter->btn->inverted_fg);
+            XChangeWindowAttributes(R->display, iter->win_id,
+                                    CWBackPixel|CWBorderPixel, &attributes);
+            XClearArea(R->display, iter->win_id, 0,0, iter->btn->width,
+                       iter->btn->height, True);
+            break;
+        } 
+
+        iter = iter->next;
+    }
+
     bool running=true;
     XEvent ev;
     while(running){
@@ -184,6 +202,8 @@ Button_List create_buttonlist(WinResources *R, Window parent, XContext *context,
     list.default_mixer = get_defaultunit();
     /* printf("%d\n",list.default_mixer); */
 
+    Button *btn;
+    Window subwin;
     int ypad = 3;
     struct mixer *m;
     char buffer[NAME_MAX];
@@ -196,7 +216,7 @@ Button_List create_buttonlist(WinResources *R, Window parent, XContext *context,
         size_t name_len = strlen(m->ci.longname);
         char *name = malloc(sizeof(char)*name_len);
         strncpy(name,m->ci.longname,name_len);
-        Window subwin = create_button(R->display, &parent, R->depth, R->visual, 
+        btn = create_button(R->display, &parent, &subwin, R->depth, R->visual, 
                                       *context, 0, height*i+(ypad*i), width, &R->colormap, 
                                       0x333333, 0xbbbbbb, "#000000", name, 
                                       name_len, set_defaultunit, font);
@@ -205,6 +225,7 @@ Button_List create_buttonlist(WinResources *R, Window parent, XContext *context,
         Button_node *node = malloc(sizeof(Button_node));
         node->win_id = subwin;
         node->mixer_id = i;
+        node->btn = btn;
         node->next = NULL;
 
         if(list.first == NULL){

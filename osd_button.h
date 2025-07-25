@@ -37,7 +37,9 @@ typedef struct {
     Callback buttonRelease;
 } osd_button;
 
-Window create_button(Display*,Window*,int,Visual*,XContext,int,int,int,Colormap*,int,int,char*,char*,size_t,Callback,XftFont*);
+osd_button *create_button(Display*,Window*,Window*,int,Visual*,XContext,
+                          int,int,int,Colormap*,int,int,char*,char*,size_t,
+                          Callback,XftFont*);
 void expose_button(osd_button*,XEvent*);
 void config_button(osd_button*,XEvent*);
 void enter_button(osd_button*,XEvent*);
@@ -82,11 +84,11 @@ bool isvalid_color(char *hex)
 }
 
 // osd_button 
-Window
-create_button(Display *display, Window *parent, int depth, Visual *visual, 
-              XContext context, int x, int y, int width, Colormap *colormap, 
-              int border, int background, char *foreground, char *label, 
-              size_t label_len, Callback cb_func, XftFont *xftfont)
+osd_button *
+create_button(Display *display, Window *parent, Window *child, int depth, 
+              Visual *visual, XContext context, int x, int y, int width, 
+              Colormap *colormap, int border, int background, char *foreground, 
+              char *label, size_t label_len, Callback cb_func, XftFont *xftfont)
 {
     int class = InputOutput;
     int valuemask = def_valuemask;
@@ -100,10 +102,10 @@ create_button(Display *display, Window *parent, int depth, Visual *visual,
     width += (padding*2);
     int height = (xftfont->height+xftfont->descent);
 
-    Window subwin = XCreateWindow(display,*parent,x,y,width,height,2, depth,
-                                  class,visual,valuemask,&attributes);
+    *child = XCreateWindow(display,*parent,x,y,width,height,2, depth,
+                           class,visual,valuemask,&attributes);
 
-    XftDraw *draw = XftDrawCreate(display, subwin, visual, *colormap);
+    XftDraw *draw = XftDrawCreate(display, *child, visual, *colormap);
 
     osd_button *button = malloc(sizeof(osd_button)); 
 
@@ -133,10 +135,10 @@ create_button(Display *display, Window *parent, int depth, Visual *visual,
     button->label = label;
     button->buttonRelease = (cb_func?cb_func:die);
 
-    XSaveContext(display,subwin,context,(XPointer)button);
-    XMapWindow(display,subwin);
+    XSaveContext(display,*child,context,(XPointer)button);
+    XMapWindow(display,*child);
 
-    return(subwin);
+    return(button);
 }
 
 void expose_button(osd_button *button, XEvent *event)
