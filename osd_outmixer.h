@@ -20,6 +20,8 @@ typedef struct node_t{
 
 typedef struct {
     Button_node *first;
+    int default_mixer;
+    /* int current_mixer; */
     size_t length;
 } Button_List;
 
@@ -106,7 +108,6 @@ int osd_outmixer(void)
     XMapWindow(R->display,window);
     XSync(R->display,false);
 
-    printf("%d\n",get_defaultunit());
 
     XGrabKeyboard(R->display,window,true,GrabModeAsync,GrabModeAsync,CurrentTime);
     
@@ -123,12 +124,12 @@ int osd_outmixer(void)
             case Expose:
                 if(btn) expose_button(btn,&ev);
                 break;
-            case EnterNotify:
-                if(btn) enter_button(btn,&ev);
-                break;
-            case LeaveNotify:
-                if(btn) leave_button(btn,&ev);
-                break;
+            /* case EnterNotify: */
+            /*     if(btn) enter_button(btn,&ev); */
+            /*     break; */
+            /* case LeaveNotify: */
+            /*     if(btn) leave_button(btn,&ev); */
+            /*     break; */
             case ButtonRelease:
                 if(btn){
                     UnitData cbdata = { 
@@ -180,7 +181,10 @@ Button_List create_buttonlist(WinResources *R, Window parent, XContext *context,
                               int width, int height, int nmixers, XftFont *font)
 {
     Button_List list = { .first = NULL, .length = 0 };
+    list.default_mixer = get_defaultunit();
+    /* printf("%d\n",list.default_mixer); */
 
+    int ypad = 3;
     struct mixer *m;
     char buffer[NAME_MAX];
 
@@ -193,7 +197,7 @@ Button_List create_buttonlist(WinResources *R, Window parent, XContext *context,
         char *name = malloc(sizeof(char)*name_len);
         strncpy(name,m->ci.longname,name_len);
         Window subwin = create_button(R->display, &parent, R->depth, R->visual, 
-                                      *context, 0, height*i+(i*3), width, &R->colormap, 
+                                      *context, 0, height*i+(ypad*i), width, &R->colormap, 
                                       0x333333, 0xbbbbbb, "#000000", name, 
                                       name_len, set_defaultunit, font);
 
