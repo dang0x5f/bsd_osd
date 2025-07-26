@@ -58,6 +58,7 @@ Button_List create_buttonlist(WinResources*,Window,XContext*,int,int,int,XftFont
 char* get_mixer_info(size_t*,size_t*);
 int get_defaultunit(void);     
 void set_defaultunit(void*);
+void set_defaultunit2(int);
 
 char *font_name = "Deja Vu Sans Mono:pixelsize=16";
 
@@ -191,6 +192,9 @@ int osd_outmixer(void)
                             node = node->next;
                         }
                         break;
+                    case XK_Return:
+                        set_defaultunit2(button_list.current_mixer);
+                        break;
                     case XK_q:
                     case XK_Escape:
                         running=false;
@@ -322,6 +326,15 @@ int get_defaultunit(void)
         exit(EXIT_FAILURE);
     }
     return(input);
+}
+
+void set_defaultunit2(int mixer_id)
+{
+    int input,output=mixer_id;
+    size_t input_len=sizeof(input),output_len=sizeof(output);
+    sysctlbyname("hw.snd.default_unit",&input,&input_len,&output,output_len);
+
+    printf("%d\n", mixer_id);
 }
 
 void set_defaultunit(void *unitdata)
