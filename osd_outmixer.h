@@ -22,7 +22,7 @@ typedef struct node_t{
 typedef struct {
     Button_node *first;
     int default_mixer;
-    /* int current_mixer; */
+    int current_mixer;
     size_t length;
 } Button_List;
 
@@ -112,9 +112,10 @@ int osd_outmixer(void)
 
     XGrabKeyboard(R->display,window,true,GrabModeAsync,GrabModeAsync,CurrentTime);
     
+    /* TODO move out of main. wrap in func */
     Button_node *iter = button_list.first;
     while(1){
-        if(iter->mixer_id == button_list.default_mixer){
+        if(iter->mixer_id == button_list.current_mixer){
             XSetWindowAttributes attributes;
             attributes.background_pixel = iter->btn->border;
             attributes.border_pixel = iter->btn->background;
@@ -132,6 +133,7 @@ int osd_outmixer(void)
     bool running=true;
     XEvent ev;
     while(running){
+        Button_node *node = NULL;
         osd_button *btn = NULL;
         XNextEvent(R->display,&ev);
         XFindContext(ev.xany.display,ev.xany.window,context,(XPointer*)&btn);
@@ -159,7 +161,41 @@ int osd_outmixer(void)
                 break;
             case KeyPress:
                 KeySym keysym = XLookupKeysym(&ev.xkey,0);
-                if(keysym==XK_Escape || keysym==XK_q) running=false;
+                /* if(keysym==XK_Escape || keysym==XK_q) running=false; */
+                switch(keysym){
+                    case XK_j:
+                        button_list.current_mixer += 1;
+                        if(button_list.current_mixer==button_list.length) 
+                            button_list.current_mixer = 0;
+                        node = button_list.first;
+                        for(int i=0; i<button_list.length; ++i){
+                            if(node->mixer_id == button_list.current_mixer)
+                                select_button(node->btn,R->display,node->win_id);
+                            else
+                                unselect_button(node->btn,R->display,node->win_id);
+
+                            node = node->next;
+                        }
+                        break;
+                    case XK_k:
+                        button_list.current_mixer -= 1;
+                        if(button_list.current_mixer<0) 
+                            button_list.current_mixer = button_list.length-1;
+                        node = button_list.first;
+                        for(int i=0; i<button_list.length; ++i){
+                            if(node->mixer_id == button_list.current_mixer)
+                                select_button(node->btn,R->display,node->win_id);
+                            else
+                                unselect_button(node->btn,R->display,node->win_id);
+
+                            node = node->next;
+                        }
+                        break;
+                    case XK_q:
+                    case XK_Escape:
+                        running=false;
+                        break;
+                }
                 break;
         }
     }
@@ -200,6 +236,7 @@ Button_List create_buttonlist(WinResources *R, Window parent, XContext *context,
 {
     Button_List list = { .first = NULL, .length = 0 };
     list.default_mixer = get_defaultunit();
+    list.current_mixer = list.default_mixer;
     /* printf("%d\n",list.default_mixer); */
 
     Button *btn;

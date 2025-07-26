@@ -44,6 +44,8 @@ void expose_button(osd_button*,XEvent*);
 void config_button(osd_button*,XEvent*);
 void enter_button(osd_button*,XEvent*);
 void leave_button(osd_button*,XEvent*);
+void select_button(osd_button*,Display*,Window);
+void unselect_button(osd_button*,Display*,Window);
 
 #endif // OSD_BTTN_H
 
@@ -174,6 +176,26 @@ void leave_button(osd_button *button, XEvent *event)
                             CWBackPixel|CWBorderPixel, &attributes);
     XClearArea(event->xany.display, event->xany.window, 0,0, button->width,
                button->height, True);
+}
+
+void select_button(osd_button *button, Display *d, Window w)
+{
+    XSetWindowAttributes attributes;
+    attributes.background_pixel = button->border;
+    attributes.border_pixel = button->background;
+    (button->foreground) = (button->inverted_fg);
+    XChangeWindowAttributes(d, w, CWBackPixel|CWBorderPixel, &attributes);
+    XClearArea(d, w, 0,0, button->width, button->height, True);
+}
+
+void unselect_button(osd_button *button, Display *d, Window w)
+{
+    XSetWindowAttributes attributes;
+    attributes.background_pixel = button->background;
+    attributes.border_pixel = button->border;
+    (button->foreground) = (button->fg);
+    XChangeWindowAttributes(d, w, CWBackPixel|CWBorderPixel, &attributes);
+    XClearArea(d, w, 0,0, button->width, button->height, True);
 }
 
 #endif // OSD_BTTN_IMPLEMENTATION
