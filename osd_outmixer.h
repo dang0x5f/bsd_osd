@@ -53,7 +53,9 @@ typedef struct {
 #define HEIGHT 400
 #define BORDER_PIXEL 2
 #define BLACK "#000000"
-#define GREEN "#00a000"
+#define GREEN "#00a500"
+#define LIGHT_GREEN "#90ee90"
+#define DARK_GREEN "#026440"
 
 WinResources *init_resources(void);    // Setup window essentials
 Button_List create_buttonlist(WinResources*,Window,XContext*,int,int,int,XftFont*);   
@@ -62,6 +64,7 @@ int get_defaultunit(void);
 void set_defaultunit(void*);
 void set_defaultunit2(int,Button_List*);
 void reassign_foreground(WinResources*,int, Button_List*);
+void init_selected_mixer(WinResources*,Button_List*);
 
 char *font_name = "Deja Vu Sans Mono:pixelsize=16";
 
@@ -101,30 +104,11 @@ int osd_outmixer(void)
 
     Button_List button_list;
     button_list = create_buttonlist(R,window,&context,width1,height1,nmixers,font);
+    init_selected_mixer(R,&button_list);
 
     XMapWindow(R->display,window);
     XSync(R->display,false);
-
-
     XGrabKeyboard(R->display,window,true,GrabModeAsync,GrabModeAsync,CurrentTime);
-    
-    /* TODO move out of main. wrap in func */
-    Button_node *iter = button_list.first;
-    while(1){
-        if(iter->mixer_id == button_list.current_mixer){
-            XSetWindowAttributes attributes;
-            attributes.background_pixel = iter->btn->border;
-            attributes.border_pixel = iter->btn->background;
-            (iter->btn->foreground) = (iter->btn->inverted_fg);
-            XChangeWindowAttributes(R->display, iter->win_id,
-                                    CWBackPixel|CWBorderPixel, &attributes);
-            XClearArea(R->display, iter->win_id, 0,0, iter->btn->width,
-                       iter->btn->height, True);
-            break;
-        } 
-
-        iter = iter->next;
-    }
 
     bool running=true;
     XEvent ev;
@@ -259,7 +243,6 @@ Button_List create_buttonlist(WinResources *R, Window parent, XContext *context,
     Button_List list = { .first = NULL, .length = 0 };
     list.default_mixer = get_defaultunit();
     list.current_mixer = list.default_mixer;
-    /* printf("%d\n",list.default_mixer); */
 
     Button *btn;
     Window subwin;
@@ -321,9 +304,9 @@ void reassign_foreground(WinResources *R, int new_defaultunit, Button_List *list
 
     XftColor def_color;
     XftColorAllocName(R->display,R->visual,R->colormap,GREEN,&def_color);
+
     XftColor norm_color;
     XftColorAllocName(R->display,R->visual,R->colormap,BLACK,&norm_color);
-
     XftColor inverted_color;
     char inverted[8]={'\0'};
     invert_color(BLACK,inverted);
@@ -340,6 +323,26 @@ void reassign_foreground(WinResources *R, int new_defaultunit, Button_List *list
         }
         
         node = node->next;
+    }
+}
+
+void init_selected_mixer(WinResources *R, Button_List *list)
+{
+    Button_node *iter = list->first;
+    while(1){
+        if(iter->mixer_id == list->current_mixer){
+            XSetWindowAttributes attributes;
+            attributes.background_pixel = iter->btn->border;
+            attributes.border_pixel = iter->btn->background;
+            (iter->btn->foreground) = (iter->btn->inverted_fg);
+            XChangeWindowAttributes(R->display, iter->win_id,
+                                    CWBackPixel|CWBorderPixel, &attributes);
+            XClearArea(R->display, iter->win_id, 0,0, iter->btn->width,
+                       iter->btn->height, True);
+            break;
+        } 
+
+        iter = iter->next;
     }
 }
 
