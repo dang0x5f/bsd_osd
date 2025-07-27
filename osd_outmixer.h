@@ -53,14 +53,14 @@ typedef struct {
 #define HEIGHT 400
 #define BORDER_PIXEL 2
 #define BLACK "#000000"
-#define GREEN "#009000"
+#define GREEN "#00a000"
 
 WinResources *init_resources(void);    // Setup window essentials
 Button_List create_buttonlist(WinResources*,Window,XContext*,int,int,int,XftFont*);   
-char* get_mixer_info(size_t*,size_t*);
+void get_mixer_info(size_t*,size_t*);
 int get_defaultunit(void);     
 void set_defaultunit(void*);
-void set_defaultunit2(int);
+void set_defaultunit2(int,Button_List*);
 void reassign_foreground(WinResources*,int, Button_List*);
 
 char *font_name = "Deja Vu Sans Mono:pixelsize=16";
@@ -75,7 +75,7 @@ int osd_outmixer(void)
     XftFont *font = font_setup(R->display,R->screen_num,font_name);
 
     size_t nmixers, max_name_len;
-    char *name = get_mixer_info(&nmixers,&max_name_len);
+    get_mixer_info(&nmixers,&max_name_len);
     printf("%zu\n",nmixers);
 
     int ypadding = 3;
@@ -165,10 +165,14 @@ int osd_outmixer(void)
                             button_list.current_mixer = 0;
                         node = button_list.first;
                         for(int i=0; i<button_list.length; ++i){
-                            if(node->mixer_id == button_list.current_mixer)
-                                select_button(node->btn,R->display,node->win_id);
-                            else
+                            bool invert = true;
+                            if(node->mixer_id == button_list.current_mixer){
+                                if(node->mixer_id == button_list.default_mixer)
+                                    invert=false;
+                                select_button(node->btn,R->display,node->win_id,invert);
+                            } else{
                                 unselect_button(node->btn,R->display,node->win_id);
+                            }
 
                             node = node->next;
                         }
@@ -179,16 +183,21 @@ int osd_outmixer(void)
                             button_list.current_mixer = button_list.length-1;
                         node = button_list.first;
                         for(int i=0; i<button_list.length; ++i){
-                            if(node->mixer_id == button_list.current_mixer)
-                                select_button(node->btn,R->display,node->win_id);
-                            else
+                            bool invert = true;
+                            if(node->mixer_id == button_list.current_mixer){
+                                if(node->mixer_id == button_list.default_mixer)
+                                    invert=false;
+                                select_button(node->btn,R->display,node->win_id,invert);
+                            }
+                            else{
                                 unselect_button(node->btn,R->display,node->win_id);
+                            }
 
                             node = node->next;
                         }
                         break;
                     case XK_Return:
-                        set_defaultunit2(button_list.current_mixer);
+                        set_defaultunit2(button_list.current_mixer,&button_list);
                         reassign_foreground(R,button_list.current_mixer,&button_list);
                         break;
                     case XK_q:
@@ -293,7 +302,6 @@ Button_List create_buttonlist(WinResources *R, Window parent, XContext *context,
 /* 	      XftColor	*color); */
 
 /* TODO: color change right away */
-/* TODO: fix invert color here, maybe make invert color viewable outside of button */
 void reassign_foreground(WinResources *R, int new_defaultunit, Button_List *list)
 {
     Button_node *node = list->first;
@@ -304,14 +312,19 @@ void reassign_foreground(WinResources *R, int new_defaultunit, Button_List *list
     XftColor norm_color;
     XftColorAllocName(R->display,R->visual,R->colormap,BLACK,&norm_color);
 
+    XftColor inverted_color;
+    char inverted[8]={'\0'};
+    invert_color(BLACK,inverted);
+    XftColorAllocName(R->display,R->visual,R->colormap,inverted,&inverted_color);
+
     while(node){
         if(node->mixer_id == new_defaultunit){
 
             node->btn->fg = def_color;
         }
         else{
-
             node->btn->fg = norm_color;
+            node->btn->inverted_fg = inverted_color;
         }
         
         node = node->next;
@@ -319,7 +332,7 @@ void reassign_foreground(WinResources *R, int new_defaultunit, Button_List *list
 }
 
 /* TODO:  get rid of malloc / return char* */
-char* get_mixer_info(size_t *nmixers, size_t *max_name_len)
+void get_mixer_info(size_t *nmixers, size_t *max_name_len)
 {
     *nmixers = 0;
     *max_name_len = 0;
@@ -328,7 +341,6 @@ char* get_mixer_info(size_t *nmixers, size_t *max_name_len)
         errx(1,"No mixers present in system");
     
     struct mixer *m;
-    char *longname = NULL;
     char buffer[NAME_MAX];
 
     for(size_t i=0; i<*nmixers; ++i){
@@ -338,13 +350,10 @@ char* get_mixer_info(size_t *nmixers, size_t *max_name_len)
 
         if(strlen(m->ci.longname)>*max_name_len){
             *max_name_len = MAX(*max_name_len,strlen(m->ci.longname));
-            longname = malloc(sizeof(char)*(*max_name_len)+1);
-            strncpy(longname,m->ci.longname,*max_name_len);
         }
          
         (void)mixer_close(m);
     }    
-    return(longname);
 }
 
 int get_defaultunit(void)
@@ -359,13 +368,15 @@ int get_defaultunit(void)
     return(input);
 }
 
-void set_defaultunit2(int mixer_id)
+void set_defaultunit2(int mixer_id,Button_List *list)
 {
     /* TODO: alter for virtual_oss , call exec() */
 
     int input,output=mixer_id;
     size_t input_len=sizeof(input),output_len=sizeof(output);
     sysctlbyname("hw.snd.default_unit",&input,&input_len,&output,output_len);
+
+    list->default_mixer = mixer_id;
 
     printf("%d\n", mixer_id);
 }

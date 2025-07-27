@@ -44,7 +44,7 @@ void expose_button(osd_button*,XEvent*);
 void config_button(osd_button*,XEvent*);
 void enter_button(osd_button*,XEvent*);
 void leave_button(osd_button*,XEvent*);
-void select_button(osd_button*,Display*,Window);
+void select_button(osd_button*,Display*,Window,bool);
 void unselect_button(osd_button*,Display*,Window);
 
 #endif // OSD_BTTN_H
@@ -178,12 +178,13 @@ void leave_button(osd_button *button, XEvent *event)
                button->height, True);
 }
 
-void select_button(osd_button *button, Display *d, Window w)
+void select_button(osd_button *button, Display *d, Window w, bool invert)
 {
     XSetWindowAttributes attributes;
     attributes.background_pixel = button->border;
     attributes.border_pixel = button->background;
-    (button->foreground) = (button->inverted_fg);
+    if(invert)
+        (button->foreground) = (button->inverted_fg);
     XChangeWindowAttributes(d, w, CWBackPixel|CWBorderPixel, &attributes);
     XClearArea(d, w, 0,0, button->width, button->height, True);
 }
