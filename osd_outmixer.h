@@ -61,6 +61,7 @@ char* get_mixer_info(size_t*,size_t*);
 int get_defaultunit(void);     
 void set_defaultunit(void*);
 void set_defaultunit2(int);
+void reassign_foreground(WinResources*,int, Button_List*);
 
 char *font_name = "Deja Vu Sans Mono:pixelsize=16";
 
@@ -90,14 +91,12 @@ int osd_outmixer(void)
     ypos = (ypos/2)-(height/2);
     
     Window root = DefaultRootWindow(R->display);
-    /* TODO: make less messy, and add remarks why */
-    // width  + (BORDER*2)                  -  account for button border
-    // height + (BORDER*2) + (BORDER*2)     -  account for button border .. 2 times works?
     Window window = XCreateWindow(R->display,root,XPOS,ypos,width,height,
                                   BORDER_PIXEL,R->depth,CopyFromParent,
                                   R->visual,R->valuemask,&R->attributes);
 
     int width1 =  font->max_advance_width * max_name_len;
+    /* TODO: maybe add vertical padding */
     int height1 = font->ascent+font->descent;
 
     Button_List button_list;
@@ -190,6 +189,7 @@ int osd_outmixer(void)
                         break;
                     case XK_Return:
                         set_defaultunit2(button_list.current_mixer);
+                        reassign_foreground(R,button_list.current_mixer,&button_list);
                         break;
                     case XK_q:
                     case XK_Escape:
@@ -257,9 +257,9 @@ Button_List create_buttonlist(WinResources *R, Window parent, XContext *context,
         char *name = malloc(sizeof(char)*name_len);
         strncpy(name,m->ci.longname,name_len);
         btn = create_button(R->display, &parent, &subwin, R->depth, R->visual, 
-                                      *context, 0, ((height+(BORDER_PIXEL*2))*i)+(ypad*i), width, &R->colormap, 
-                                      BORDER_PIXEL,0x333333, 0xbbbbbb, fg_color, name, 
-                                      name_len, set_defaultunit, font);
+                            *context, 0, ((height+(BORDER_PIXEL*2))*i)+(ypad*i), width, &R->colormap, 
+                            BORDER_PIXEL,0x333333, 0xbbbbbb, fg_color, name, 
+                            name_len, set_defaultunit, font);
 
         /* TODO: free */
         Button_node *node = malloc(sizeof(Button_node));
@@ -283,6 +283,39 @@ Button_List create_buttonlist(WinResources *R, Window parent, XContext *context,
     }    
 
     return(list);
+}
+
+/* TODO: FREE COLORS, create color system */
+/* void */
+/* XftColorFree (Display	*dpy, */
+/* 	      Visual	*visual, */
+/* 	      Colormap	cmap, */
+/* 	      XftColor	*color); */
+
+/* TODO: color change right away */
+/* TODO: fix invert color here, maybe make invert color viewable outside of button */
+void reassign_foreground(WinResources *R, int new_defaultunit, Button_List *list)
+{
+    Button_node *node = list->first;
+
+
+    XftColor def_color;
+    XftColorAllocName(R->display,R->visual,R->colormap,GREEN,&def_color);
+    XftColor norm_color;
+    XftColorAllocName(R->display,R->visual,R->colormap,BLACK,&norm_color);
+
+    while(node){
+        if(node->mixer_id == new_defaultunit){
+
+            node->btn->fg = def_color;
+        }
+        else{
+
+            node->btn->fg = norm_color;
+        }
+        
+        node = node->next;
+    }
 }
 
 /* TODO:  get rid of malloc / return char* */
