@@ -77,14 +77,11 @@ int osd_outmixer(void)
     char *name = get_mixer_info(&nmixers,&max_name_len);
     printf("%zu\n",nmixers);
 
-    /* int height = (nmixers*2)*font->height; */
-
-
     int ypadding = 3;
     int padding = 5;
 
     int width = font->max_advance_width * max_name_len+(BORDER_PIXEL*2) + (padding*2);
-    int height = (font->ascent+font->descent+(BORDER_PIXEL*2)+(BORDER_PIXEL*2))*(nmixers-1);
+    int height = ((font->ascent+font->descent+(BORDER_PIXEL*2))*(nmixers-1));
 
     height += (ypadding*(nmixers-2));
 
@@ -101,11 +98,8 @@ int osd_outmixer(void)
                                   R->visual,R->valuemask,&R->attributes);
 
     int width1 =  font->max_advance_width * max_name_len;
-    int height1 = font->ascent+font->descent+(BORDER_PIXEL*2)+(BORDER_PIXEL*2);
-        /* Window subwin = create_button(R->display, &window, R->depth, R->visual, */ 
-        /*                               context, 0,0, width1, &R->colormap, */ 
-        /*                               0xffaa5f, 0x000000, "#00FF00", name, */ 
-        /*                               max_name_len,  NULL, font); */
+    int height1 = font->ascent+font->descent;
+
     Button_List button_list;
     button_list = create_buttonlist(R,window,&context,width1,height1,nmixers,font);
 
@@ -263,7 +257,7 @@ Button_List create_buttonlist(WinResources *R, Window parent, XContext *context,
         char *name = malloc(sizeof(char)*name_len);
         strncpy(name,m->ci.longname,name_len);
         btn = create_button(R->display, &parent, &subwin, R->depth, R->visual, 
-                                      *context, 0, height*i+(ypad*i), width, &R->colormap, 
+                                      *context, 0, ((height+(BORDER_PIXEL*2))*i)+(ypad*i), width, &R->colormap, 
                                       BORDER_PIXEL,0x333333, 0xbbbbbb, fg_color, name, 
                                       name_len, set_defaultunit, font);
 

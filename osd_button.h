@@ -102,7 +102,7 @@ create_button(Display *display, Window *parent, Window *child, int depth,
     int ypadding = 3;
     int padding = 5;
     width += (padding*2);
-    int height = (xftfont->height+xftfont->descent);
+    int height = (xftfont->ascent+xftfont->descent);
 
     *child = XCreateWindow(display,*parent,x,y,width,height,border_px, depth,
                            class,visual,valuemask,&attributes);
@@ -131,7 +131,7 @@ create_button(Display *display, Window *parent, Window *child, int depth,
     /* button->x = (width/2)-((xftfont->max_advance_width * label_len)/2); */
     button->x = padding;
     /* button->y = xftfont->ascent+(padding/2);//(xftfont->ascent+xftfont->descent); */
-    button->y = xftfont->ascent+border_px;
+    button->y = xftfont->ascent;
     button->label_len = label_len;
     button->label = malloc(label_len+1);
     button->label = label;
