@@ -199,6 +199,19 @@ int osd_outmixer(void)
                     case XK_Return:
                         set_defaultunit2(button_list.current_mixer,&button_list);
                         reassign_foreground(R,button_list.current_mixer,&button_list);
+                        node = button_list.first;
+                        for(int i=0; i<button_list.length; ++i){
+                            bool invert = true;
+                            if(node->mixer_id == button_list.current_mixer){
+                                if(node->mixer_id == button_list.default_mixer)
+                                    invert=true;
+                                select_button(node->btn,R->display,node->win_id,invert);
+                            } else{
+                                unselect_button(node->btn,R->display,node->win_id);
+                            }
+
+                            node = node->next;
+                        }
                         break;
                     case XK_q:
                     case XK_Escape:
@@ -301,7 +314,6 @@ Button_List create_buttonlist(WinResources *R, Window parent, XContext *context,
 /* 	      Colormap	cmap, */
 /* 	      XftColor	*color); */
 
-/* TODO: color change right away */
 void reassign_foreground(WinResources *R, int new_defaultunit, Button_List *list)
 {
     Button_node *node = list->first;
@@ -319,8 +331,8 @@ void reassign_foreground(WinResources *R, int new_defaultunit, Button_List *list
 
     while(node){
         if(node->mixer_id == new_defaultunit){
-
             node->btn->fg = def_color;
+            node->btn->inverted_fg = def_color;
         }
         else{
             node->btn->fg = norm_color;
@@ -331,7 +343,6 @@ void reassign_foreground(WinResources *R, int new_defaultunit, Button_List *list
     }
 }
 
-/* TODO:  get rid of malloc / return char* */
 void get_mixer_info(size_t *nmixers, size_t *max_name_len)
 {
     *nmixers = 0;
