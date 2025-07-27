@@ -52,6 +52,8 @@ typedef struct {
 #define WIDTH 300
 #define HEIGHT 400
 #define BORDER_PIXEL 2
+#define BLACK "#000000"
+#define GREEN "#009000"
 
 WinResources *init_resources(void);    // Setup window essentials
 Button_List create_buttonlist(WinResources*,Window,XContext*,int,int,int,XftFont*);   
@@ -249,20 +251,23 @@ Button_List create_buttonlist(WinResources *R, Window parent, XContext *context,
     struct mixer *m;
     char buffer[NAME_MAX];
 
+    char* fg_color;
+
     for(int i=0; i<nmixers; ++i){
         mixer_get_path(buffer, sizeof(buffer), i);
 
         if((m=mixer_open(buffer))==NULL) continue;
 
+        fg_color = (list.default_mixer==i?GREEN:BLACK);
         size_t name_len = strlen(m->ci.longname);
         char *name = malloc(sizeof(char)*name_len);
         strncpy(name,m->ci.longname,name_len);
         btn = create_button(R->display, &parent, &subwin, R->depth, R->visual, 
                                       *context, 0, height*i+(ypad*i), width, &R->colormap, 
-                                      0x333333, 0xbbbbbb, "#000000", name, 
+                                      BORDER_PIXEL,0x333333, 0xbbbbbb, fg_color, name, 
                                       name_len, set_defaultunit, font);
 
-        /* TODO: free on close */
+        /* TODO: free */
         Button_node *node = malloc(sizeof(Button_node));
         node->win_id = subwin;
         node->mixer_id = i;
@@ -317,10 +322,9 @@ char* get_mixer_info(size_t *nmixers, size_t *max_name_len)
 
 int get_defaultunit(void)
 {
-    // TODO: input should either be initialized or checked before return
     int input;
     size_t ilen = sizeof(input);
-    // TODO: use errno
+    // TODO: errno str
     if(sysctlbyname("hw.snd.default_unit",&input,&ilen,NULL,0)==-1){
         perror("sysctlbyname() error\n");
         exit(EXIT_FAILURE);
@@ -330,6 +334,8 @@ int get_defaultunit(void)
 
 void set_defaultunit2(int mixer_id)
 {
+    /* TODO: alter for virtual_oss , call exec() */
+
     int input,output=mixer_id;
     size_t input_len=sizeof(input),output_len=sizeof(output);
     sysctlbyname("hw.snd.default_unit",&input,&input_len,&output,output_len);
@@ -356,9 +362,5 @@ void set_defaultunit(void *unitdata)
 
     printf("%d\n", node->mixer_id);
 }
-
-        /* printf("%s\n", m->name); */
-        /* printf("  - %s\n", m->ci.shortname); */
-        /* printf("  - %s\n", m->ci.longname); */
 
 #endif
