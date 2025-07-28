@@ -63,15 +63,13 @@ WinResources *init_resources(void);    // Setup window essentials
 Button_List create_buttonlist(WinResources*,Window,XContext*,int,int,int,XftFont*);   
 void get_mixer_info(size_t*,size_t*);
 int get_defaultunit(void);     
-void set_defaultunit(void*);
 void set_defaultunit2(int,Button_List*);
-/* void init_selected_mixer(WinResources*,Button_List*); */
+void init_selected_mixer(WinResources*,Button_List*);
 XftGlyphFontSpec *init_default_indicator(WinResources*,XftFont*,uint32_t);
 bool process_keypress(WinResources*,Button_List*,KeySym);
 void draw_buttons(WinResources*,Button_List*,Button_node*);
 
 char *font_name = "Deja Vu Sans Mono:pixelsize=16";
-
 
 int osd_outmixer(void)
 {
@@ -87,12 +85,9 @@ int osd_outmixer(void)
 
     int ypadding = 3;
     int padding = 5;
-
     int width = font->max_advance_width * max_name_len+(BORDER_PIXEL*2) + (padding*2);
     int height = ((font->ascent+font->descent+(BORDER_PIXEL*2))*(nmixers-1));
-
     height += (ypadding*(nmixers-2));
-
     /* int xpos = DisplayWidth(R->display,R->screen_num); clang warning */
     int ypos = DisplayHeight(R->display,R->screen_num);
     ypos = (ypos/2)-(height/2);
@@ -105,10 +100,9 @@ int osd_outmixer(void)
     int width1 =  font->max_advance_width * max_name_len;
     /* TODO: maybe add vertical padding */
     int height1 = font->ascent+font->descent;
-
     Button_List button_list;
     button_list = create_buttonlist(R,window,&context,width1,height1,nmixers,font);
-    /* init_selected_mixer(R,&button_list); */
+    init_selected_mixer(R,&button_list);
 
     // start indicator
     uint32_t glyph = 0x2023;
@@ -218,7 +212,7 @@ Button_List create_buttonlist(WinResources *R, Window parent, XContext *context,
         btn = create_button(R->display, &parent, &subwin, R->depth, R->visual, 
                             *context, 0, ((height+(BORDER_PIXEL*2))*i)+(ypad*i), 
                             width, &R->colormap, BORDER_PIXEL,0x333333, 0xbbbbbb, 
-                            fg_color, name, name_len, set_defaultunit, font);
+                            fg_color, name, name_len, NULL, font);
 
         /* TODO: free */
         node = malloc(sizeof(Button_node));
@@ -255,25 +249,17 @@ Button_List create_buttonlist(WinResources *R, Window parent, XContext *context,
     return(list);
 }
 
-/* void init_selected_mixer(WinResources *R, Button_List *list) */
-/* { */
-/*     Button_node *iter = list->first; */
-/*     while(1){ */
-/*         if(iter->mixer_id == list->current_mixer){ */
-/*             XSetWindowAttributes attributes; */
-/*             attributes.background_pixel = iter->btn->border; */
-/*             attributes.border_pixel = iter->btn->background; */
-/*             (iter->btn->foreground) = (iter->btn->inverted_fg); */
-/*             XChangeWindowAttributes(R->display, iter->win_id, */
-/*                                     CWBackPixel|CWBorderPixel, &attributes); */
-/*             XClearArea(R->display, iter->win_id, 0,0, iter->btn->width, */
-/*                        iter->btn->height, True); */
-/*             break; */
-/*         } */ 
-
-/*         iter = iter->next; */
-/*     } */
-/* } */
+void init_selected_mixer(WinResources *R, Button_List *list)
+{
+    Button_node *iter = list->first;
+    while(1){
+        if(iter->mixer_id == list->current_mixer->mixer_id){
+            select_button(iter->btn,R->display,iter->win_id);
+            break;
+        } 
+        iter = iter->next;
+    }
+}
 
 void get_mixer_info(size_t *nmixers, size_t *max_name_len)
 {
@@ -322,27 +308,6 @@ void set_defaultunit2(int mixer_id,Button_List *list)
     list->default_mixer = mixer_id;
 
     printf("%d\n", mixer_id);
-}
-
-// TODO: used for mouse callback, remove later
-void set_defaultunit(void *unitdata)
-{
-    UnitData *ud = (UnitData*)unitdata;
-    Window win_id = ud->win_id;
-    Button_List list = ud->list;
-
-    Button_node *node = list.first;
-    while(node->next){
-        if(node->win_id == win_id) break;
-        
-        node = node->next;
-    }
-
-    int input,output=node->mixer_id;
-    size_t input_len=sizeof(input),output_len=sizeof(output);
-    sysctlbyname("hw.snd.default_unit",&input,&input_len,&output,output_len);
-
-    printf("%d\n", node->mixer_id);
 }
 
 XftGlyphFontSpec *
