@@ -66,10 +66,23 @@ int get_defaultunit(void);
 void set_defaultunit2(int,Button_List*);
 void init_selected_mixer(WinResources*,Button_List*);
 XftGlyphFontSpec *init_default_indicator(WinResources*,XftFont*,uint32_t);
+void indicator_setup(WinResources*,XftFont*);
 bool process_keypress(WinResources*,Button_List*,KeySym);
 void draw_buttons(WinResources*,Button_List*,Button_node*);
 
 char *font_name = "Deja Vu Sans Mono:pixelsize=16";
+
+/* TODO: struct */
+/* include size for draw call */ 
+XftColor indic_color;
+XftGlyphFontSpec *indicator;
+
+void indicator_setup(WinResources *R,XftFont *font)
+{
+    uint32_t glyph = 0x2023;
+    indicator = init_default_indicator(R, font, glyph);
+    XftColorAllocName(R->display,R->visual,R->colormap,"#00FF00",&indic_color);
+}
 
 int osd_outmixer(void)
 {
@@ -78,6 +91,7 @@ int osd_outmixer(void)
     WinResources *R = init_resources();
 
     XftFont *font = font_setup(R->display,R->screen_num,font_name);
+    indicator_setup(R,font);
 
     size_t nmixers, max_name_len;
     get_mixer_info(&nmixers,&max_name_len);
@@ -90,7 +104,8 @@ int osd_outmixer(void)
     height += (ypadding*(nmixers-2));
     /* int xpos = DisplayWidth(R->display,R->screen_num); clang warning */
     int ypos = DisplayHeight(R->display,R->screen_num);
-    ypos = (ypos/2)-(height/2);
+    /* ypos = (ypos/2)-(height/2); */
+    ypos = ypos - (height+(BORDER_PIXEL*2));
     
     Window root = DefaultRootWindow(R->display);
     Window window = XCreateWindow(R->display,root,XPOS,ypos,width,height,
@@ -103,13 +118,6 @@ int osd_outmixer(void)
     Button_List button_list;
     button_list = create_buttonlist(R,window,&context,width1,height1,nmixers,font);
     init_selected_mixer(R,&button_list);
-
-    // start indicator
-    uint32_t glyph = 0x2023;
-    XftGlyphFontSpec *indicator = init_default_indicator(R, font, glyph);
-    XftColor color;
-    XftColorAllocName(R->display,R->visual,R->colormap,"#00FF00",&color);
-    // end indicator
 
     XMapWindow(R->display,window);
     XSync(R->display,false);
@@ -127,7 +135,7 @@ int osd_outmixer(void)
                 break;
             case Expose:
                 if(btn) expose_button(btn,&ev);
-    XftDrawGlyphFontSpec(button_list.first->btn->draw,&color,indicator,1);
+    /* XftDrawGlyphFontSpec(button_list.first->btn->draw,&indic_color,indicator,1); */
                 break;
             /* case EnterNotify: */
             /*     if(btn) enter_button(btn,&ev); */
@@ -335,14 +343,19 @@ init_default_indicator(WinResources *R, XftFont *font, uint32_t glyph)
 
 void draw_buttons(WinResources *R, Button_List *list, Button_node *node)
 {
+    Button_node *def_mixer = list->first;
+
     for(size_t i=0; i<list->length; ++i){
         if(node->mixer_id == list->current_mixer->mixer_id)
             select_button(node->btn,R->display,node->win_id);
         else
             unselect_button(node->btn,R->display,node->win_id);
+        
+        if(node->mixer_id == list->default_mixer) def_mixer = node;
 
         node = node->next;
     }
+    XftDrawGlyphFontSpec(def_mixer->btn->draw,&indic_color,indicator,1);
 }
 
 bool process_keypress(WinResources *R, Button_List *list, KeySym keysym)
@@ -359,6 +372,7 @@ bool process_keypress(WinResources *R, Button_List *list, KeySym keysym)
             list->current_mixer = list->current_mixer->prev;
             break;
         case XK_Return:
+            XClearWindow(R->display,list->current_mixer->win_id);
             set_defaultunit2(list->current_mixer->mixer_id,list);
             break;
         case XK_q:
