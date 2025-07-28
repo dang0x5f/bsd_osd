@@ -65,7 +65,6 @@ void get_mixer_info(size_t*,size_t*);
 int get_defaultunit(void);     
 void set_defaultunit(void*);
 void set_defaultunit2(int,Button_List*);
-void reassign_foreground(WinResources*,int, Button_List*);
 /* void init_selected_mixer(WinResources*,Button_List*); */
 XftGlyphFontSpec *init_default_indicator(WinResources*,XftFont*,uint32_t);
 bool process_keypress(WinResources*,Button_List*,KeySym);
@@ -201,21 +200,25 @@ Button_List create_buttonlist(WinResources *R, Window parent, XContext *context,
     struct mixer *m;
     char buffer[NAME_MAX];
     Button_node *node;
-    /* TODO: implement color system */
+    /* TODO: implement color system , free cols */
+    /* void */
+    /* XftColorFree (Display	*dpy, */
+    /* 	      Visual	*visual, */
+    /* 	      Colormap	cmap, */
+    /* 	      XftColor	*color); */
     char* fg_color = BLACK;
 
     for(int i=0; i<nmixers; ++i){
         mixer_get_path(buffer, sizeof(buffer), i);
-
         if((m=mixer_open(buffer))==NULL) continue;
 
         size_t name_len = strlen(m->ci.longname);
         char *name = malloc(sizeof(char)*name_len);
         strncpy(name,m->ci.longname,name_len);
         btn = create_button(R->display, &parent, &subwin, R->depth, R->visual, 
-                            *context, 0, ((height+(BORDER_PIXEL*2))*i)+(ypad*i), width, &R->colormap, 
-                            BORDER_PIXEL,0x333333, 0xbbbbbb, fg_color, name, 
-                            name_len, set_defaultunit, font);
+                            *context, 0, ((height+(BORDER_PIXEL*2))*i)+(ypad*i), 
+                            width, &R->colormap, BORDER_PIXEL,0x333333, 0xbbbbbb, 
+                            fg_color, name, name_len, set_defaultunit, font);
 
         /* TODO: free */
         node = malloc(sizeof(Button_node));
@@ -250,42 +253,6 @@ Button_List create_buttonlist(WinResources *R, Window parent, XContext *context,
     list.end = node;
 
     return(list);
-}
-
-/* TODO: FREE COLORS, create color system */
-/* void */
-/* XftColorFree (Display	*dpy, */
-/* 	      Visual	*visual, */
-/* 	      Colormap	cmap, */
-/* 	      XftColor	*color); */
-
-void reassign_foreground(WinResources *R, int new_defaultunit, Button_List *list)
-{
-    Button_node *node = list->first;
-
-
-    XftColor def_color;
-    XftColorAllocName(R->display,R->visual,R->colormap,GREEN,&def_color);
-
-    XftColor norm_color;
-    XftColorAllocName(R->display,R->visual,R->colormap,BLACK,&norm_color);
-    XftColor inverted_color;
-    char inverted[8]={'\0'};
-    invert_color(BLACK,inverted);
-    XftColorAllocName(R->display,R->visual,R->colormap,inverted,&inverted_color);
-
-    while(node){
-        if(node->mixer_id == new_defaultunit){
-            node->btn->fg = def_color;
-            node->btn->inverted_fg = def_color;
-        }
-        else{
-            node->btn->fg = norm_color;
-            node->btn->inverted_fg = inverted_color;
-        }
-        
-        node = node->next;
-    }
 }
 
 /* void init_selected_mixer(WinResources *R, Button_List *list) */
