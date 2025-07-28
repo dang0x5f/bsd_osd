@@ -68,6 +68,8 @@ void set_defaultunit2(int,Button_List*);
 void reassign_foreground(WinResources*,int, Button_List*);
 /* void init_selected_mixer(WinResources*,Button_List*); */
 XftGlyphFontSpec *init_default_indicator(WinResources*,XftFont*,uint32_t);
+bool process_keypress(WinResources*,Button_List*,KeySym);
+void draw_buttons(WinResources*,Button_List*,Button_node*);
 
 char *font_name = "Deja Vu Sans Mono:pixelsize=16";
 
@@ -123,7 +125,6 @@ int osd_outmixer(void)
     bool running=true;
     XEvent ev;
     while(running){
-        Button_node *node = NULL;
         osd_button *btn = NULL;
         XNextEvent(R->display,&ev);
         XFindContext(ev.xany.display,ev.xany.window,context,(XPointer*)&btn);
@@ -152,59 +153,7 @@ int osd_outmixer(void)
                 break;
             case KeyPress:
                 KeySym keysym = XLookupKeysym(&ev.xkey,0);
-                /* if(keysym==XK_Escape || keysym==XK_q) running=false; */
-                switch(keysym){
-                    case XK_j:
-                        button_list.current_mixer = button_list.current_mixer->next;
-                        /* button_list.current_mixer += 1; */
-                        /* if(button_list.current_mixer==(int)button_list.length) */ 
-                        /*     button_list.current_mixer = 0; */
-                        node = button_list.first;
-                        for(size_t i=0; i<button_list.length; ++i){
-                            if(node->mixer_id == button_list.current_mixer->mixer_id){
-                                select_button(node->btn,R->display,node->win_id);
-                            } else{
-                                unselect_button(node->btn,R->display,node->win_id);
-                            }
-
-                            node = node->next;
-                        }
-                        break;
-                    case XK_k:
-                        button_list.current_mixer = button_list.current_mixer->prev;
-                        /* button_list.current_mixer -= 1; */
-                        /* if(button_list.current_mixer<0) */ 
-                        /*     button_list.current_mixer = button_list.length-1; */
-                        node = button_list.first;
-                        for(size_t i=0; i<button_list.length; ++i){
-                            if(node->mixer_id == button_list.current_mixer->mixer_id){
-                                select_button(node->btn,R->display,node->win_id);
-                            }
-                            else{
-                                unselect_button(node->btn,R->display,node->win_id);
-                            }
-
-                            node = node->next;
-                        }
-                        break;
-                    case XK_Return:
-                        set_defaultunit2(button_list.current_mixer->mixer_id,&button_list);
-                        node = button_list.first;
-                        for(size_t i=0; i<button_list.length; ++i){
-                            if(node->mixer_id == button_list.current_mixer->mixer_id){
-                                select_button(node->btn,R->display,node->win_id);
-                            } else{
-                                unselect_button(node->btn,R->display,node->win_id);
-                            }
-
-                            node = node->next;
-                        }
-                        break;
-                    case XK_q:
-                    case XK_Escape:
-                        running=false;
-                        break;
-                }
+                running = process_keypress(R,&button_list,keysym);
                 break;
         }
     }
@@ -245,7 +194,6 @@ Button_List create_buttonlist(WinResources *R, Window parent, XContext *context,
 {
     Button_List list = { .first = NULL, .length = 0 };
     list.default_mixer = get_defaultunit();
-    /* list.current_mixer = list.default_mixer; */
 
     Button *btn;
     Window subwin;
@@ -451,6 +399,44 @@ init_default_indicator(WinResources *R, XftFont *font, uint32_t glyph)
     }
 
     return(indicator_spec);
+}
+
+void draw_buttons(WinResources *R, Button_List *list, Button_node *node)
+{
+    for(size_t i=0; i<list->length; ++i){
+        if(node->mixer_id == list->current_mixer->mixer_id)
+            select_button(node->btn,R->display,node->win_id);
+        else
+            unselect_button(node->btn,R->display,node->win_id);
+
+        node = node->next;
+    }
+}
+
+bool process_keypress(WinResources *R, Button_List *list, KeySym keysym)
+{
+    bool running = true;
+    Button_node *node;
+    node = list->first;
+
+    switch(keysym){
+        case XK_j:
+            list->current_mixer = list->current_mixer->next;
+            break;
+        case XK_k:
+            list->current_mixer = list->current_mixer->prev;
+            break;
+        case XK_Return:
+            set_defaultunit2(list->current_mixer->mixer_id,list);
+            break;
+        case XK_q:
+        case XK_Escape:
+            running=false;
+            break;
+    }
+    draw_buttons(R,list,node);
+
+    return(running);
 }
 
 #endif
