@@ -65,6 +65,7 @@ void set_defaultunit(void*);
 void set_defaultunit2(int,Button_List*);
 void reassign_foreground(WinResources*,int, Button_List*);
 void init_selected_mixer(WinResources*,Button_List*);
+XftGlyphFontSpec *init_default_indicator(WinResources*,XftFont*,uint32_t);
 
 char *font_name = "Deja Vu Sans Mono:pixelsize=16";
 
@@ -89,7 +90,7 @@ int osd_outmixer(void)
 
     height += (ypadding*(nmixers-2));
 
-    int xpos = DisplayWidth(R->display,R->screen_num);
+    /* int xpos = DisplayWidth(R->display,R->screen_num); clang warning */
     int ypos = DisplayHeight(R->display,R->screen_num);
     ypos = (ypos/2)-(height/2);
     
@@ -105,6 +106,13 @@ int osd_outmixer(void)
     Button_List button_list;
     button_list = create_buttonlist(R,window,&context,width1,height1,nmixers,font);
     init_selected_mixer(R,&button_list);
+
+    // start indicator
+    uint32_t glyph = 0x2023;
+    XftGlyphFontSpec *indicator = init_default_indicator(R, font, glyph);
+    XftColor color;
+    XftColorAllocName(R->display,R->visual,R->colormap,"#00FF00",&color);
+    // end indicator
 
     XMapWindow(R->display,window);
     XSync(R->display,false);
@@ -123,6 +131,7 @@ int osd_outmixer(void)
                 break;
             case Expose:
                 if(btn) expose_button(btn,&ev);
+    XftDrawGlyphFontSpec(button_list.first->btn->draw,&color,indicator,1);
                 break;
             /* case EnterNotify: */
             /*     if(btn) enter_button(btn,&ev); */
@@ -145,10 +154,10 @@ int osd_outmixer(void)
                 switch(keysym){
                     case XK_j:
                         button_list.current_mixer += 1;
-                        if(button_list.current_mixer==button_list.length) 
+                        if(button_list.current_mixer==(int)button_list.length) 
                             button_list.current_mixer = 0;
                         node = button_list.first;
-                        for(int i=0; i<button_list.length; ++i){
+                        for(size_t i=0; i<button_list.length; ++i){
                             bool invert = true;
                             if(node->mixer_id == button_list.current_mixer){
                                 if(node->mixer_id == button_list.default_mixer)
@@ -166,7 +175,7 @@ int osd_outmixer(void)
                         if(button_list.current_mixer<0) 
                             button_list.current_mixer = button_list.length-1;
                         node = button_list.first;
-                        for(int i=0; i<button_list.length; ++i){
+                        for(size_t i=0; i<button_list.length; ++i){
                             bool invert = true;
                             if(node->mixer_id == button_list.current_mixer){
                                 if(node->mixer_id == button_list.default_mixer)
@@ -184,7 +193,7 @@ int osd_outmixer(void)
                         set_defaultunit2(button_list.current_mixer,&button_list);
                         reassign_foreground(R,button_list.current_mixer,&button_list);
                         node = button_list.first;
-                        for(int i=0; i<button_list.length; ++i){
+                        for(size_t i=0; i<button_list.length; ++i){
                             bool invert = true;
                             if(node->mixer_id == button_list.current_mixer){
                                 if(node->mixer_id == button_list.default_mixer)
@@ -413,6 +422,25 @@ void set_defaultunit(void *unitdata)
     sysctlbyname("hw.snd.default_unit",&input,&input_len,&output,output_len);
 
     printf("%d\n", node->mixer_id);
+}
+
+XftGlyphFontSpec *init_default_indicator(WinResources *R, XftFont *font, uint32_t glyph)
+{
+    XftGlyphFontSpec *indicator_spec = malloc(sizeof(XftGlyphFontSpec));
+    
+    uint32_t index = XftCharIndex(R->display,font,glyph);
+    if(index){
+        indicator_spec->font = font;
+        indicator_spec->glyph = index;
+        indicator_spec->x = 10;
+        indicator_spec->y = font->ascent;
+    }else{
+        printf("init_default_indicator() error\n");
+        exit(EXIT_FAILURE);
+    }
+    printf("%d\n",index);
+
+    return(indicator_spec);
 }
 
 #endif

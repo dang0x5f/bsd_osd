@@ -53,7 +53,8 @@ void unselect_button(osd_button*,Display*,Window);
 
 void die(void *cbdata)
 {
-    printf("die\n");
+    if(cbdata) printf("die\n");
+
     exit(EXIT_SUCCESS);
 }
 
@@ -99,7 +100,7 @@ create_button(Display *display, Window *parent, Window *child, int depth,
         .border_pixel = border,
         .event_mask = def_eventmask,
     };
-    int ypadding = 3;
+    /* int ypadding = 3; unused */
     int padding = 5;
     width += (padding*2);
     int height = (xftfont->ascent+xftfont->descent);
@@ -145,12 +146,16 @@ create_button(Display *display, Window *parent, Window *child, int depth,
 
 void expose_button(osd_button *button, XEvent *event)
 {
+    if(event) printf("expose_button() : *event not used\n");
+
     XftDrawStringUtf8(button->draw,&(button->foreground),button->xftfont,
                       button->x, button->y, (FcChar8*)button->label, button->label_len);
 }
 
 void config_button(osd_button *button, XEvent *event)
 {
+    if(button) printf("config_button() : *button not used\n");
+
     XClearWindow(event->xany.display, event->xany.window);
 }
 
