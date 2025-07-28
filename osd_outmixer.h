@@ -17,12 +17,14 @@ typedef struct node_t{
     int mixer_id;
     Button *btn;
     struct node_t *next;
+    struct node_t *prev;
 } Button_node;
 
 typedef struct {
     Button_node *first;
+    Button_node *end;
     int default_mixer;
-    int current_mixer;
+    Button_node *current_mixer;
     size_t length;
 } Button_List;
 
@@ -64,7 +66,7 @@ int get_defaultunit(void);
 void set_defaultunit(void*);
 void set_defaultunit2(int,Button_List*);
 void reassign_foreground(WinResources*,int, Button_List*);
-void init_selected_mixer(WinResources*,Button_List*);
+/* void init_selected_mixer(WinResources*,Button_List*); */
 XftGlyphFontSpec *init_default_indicator(WinResources*,XftFont*,uint32_t);
 
 char *font_name = "Deja Vu Sans Mono:pixelsize=16";
@@ -105,7 +107,7 @@ int osd_outmixer(void)
 
     Button_List button_list;
     button_list = create_buttonlist(R,window,&context,width1,height1,nmixers,font);
-    init_selected_mixer(R,&button_list);
+    /* init_selected_mixer(R,&button_list); */
 
     // start indicator
     uint32_t glyph = 0x2023;
@@ -153,16 +155,14 @@ int osd_outmixer(void)
                 /* if(keysym==XK_Escape || keysym==XK_q) running=false; */
                 switch(keysym){
                     case XK_j:
-                        button_list.current_mixer += 1;
-                        if(button_list.current_mixer==(int)button_list.length) 
-                            button_list.current_mixer = 0;
+                        button_list.current_mixer = button_list.current_mixer->next;
+                        /* button_list.current_mixer += 1; */
+                        /* if(button_list.current_mixer==(int)button_list.length) */ 
+                        /*     button_list.current_mixer = 0; */
                         node = button_list.first;
                         for(size_t i=0; i<button_list.length; ++i){
-                            bool invert = true;
-                            if(node->mixer_id == button_list.current_mixer){
-                                if(node->mixer_id == button_list.default_mixer)
-                                    invert=false;
-                                select_button(node->btn,R->display,node->win_id,invert);
+                            if(node->mixer_id == button_list.current_mixer->mixer_id){
+                                select_button(node->btn,R->display,node->win_id);
                             } else{
                                 unselect_button(node->btn,R->display,node->win_id);
                             }
@@ -171,16 +171,14 @@ int osd_outmixer(void)
                         }
                         break;
                     case XK_k:
-                        button_list.current_mixer -= 1;
-                        if(button_list.current_mixer<0) 
-                            button_list.current_mixer = button_list.length-1;
+                        button_list.current_mixer = button_list.current_mixer->prev;
+                        /* button_list.current_mixer -= 1; */
+                        /* if(button_list.current_mixer<0) */ 
+                        /*     button_list.current_mixer = button_list.length-1; */
                         node = button_list.first;
                         for(size_t i=0; i<button_list.length; ++i){
-                            bool invert = true;
-                            if(node->mixer_id == button_list.current_mixer){
-                                if(node->mixer_id == button_list.default_mixer)
-                                    invert=false;
-                                select_button(node->btn,R->display,node->win_id,invert);
+                            if(node->mixer_id == button_list.current_mixer->mixer_id){
+                                select_button(node->btn,R->display,node->win_id);
                             }
                             else{
                                 unselect_button(node->btn,R->display,node->win_id);
@@ -190,15 +188,11 @@ int osd_outmixer(void)
                         }
                         break;
                     case XK_Return:
-                        set_defaultunit2(button_list.current_mixer,&button_list);
-                        reassign_foreground(R,button_list.current_mixer,&button_list);
+                        set_defaultunit2(button_list.current_mixer->mixer_id,&button_list);
                         node = button_list.first;
                         for(size_t i=0; i<button_list.length; ++i){
-                            bool invert = true;
-                            if(node->mixer_id == button_list.current_mixer){
-                                if(node->mixer_id == button_list.default_mixer)
-                                    invert=true;
-                                select_button(node->btn,R->display,node->win_id,invert);
+                            if(node->mixer_id == button_list.current_mixer->mixer_id){
+                                select_button(node->btn,R->display,node->win_id);
                             } else{
                                 unselect_button(node->btn,R->display,node->win_id);
                             }
@@ -251,22 +245,22 @@ Button_List create_buttonlist(WinResources *R, Window parent, XContext *context,
 {
     Button_List list = { .first = NULL, .length = 0 };
     list.default_mixer = get_defaultunit();
-    list.current_mixer = list.default_mixer;
+    /* list.current_mixer = list.default_mixer; */
 
     Button *btn;
     Window subwin;
     int ypad = 3;
     struct mixer *m;
     char buffer[NAME_MAX];
-
-    char* fg_color;
+    Button_node *node;
+    /* TODO: implement color system */
+    char* fg_color = BLACK;
 
     for(int i=0; i<nmixers; ++i){
         mixer_get_path(buffer, sizeof(buffer), i);
 
         if((m=mixer_open(buffer))==NULL) continue;
 
-        fg_color = (list.default_mixer==i?GREEN:BLACK);
         size_t name_len = strlen(m->ci.longname);
         char *name = malloc(sizeof(char)*name_len);
         strncpy(name,m->ci.longname,name_len);
@@ -276,11 +270,12 @@ Button_List create_buttonlist(WinResources *R, Window parent, XContext *context,
                             name_len, set_defaultunit, font);
 
         /* TODO: free */
-        Button_node *node = malloc(sizeof(Button_node));
+        node = malloc(sizeof(Button_node));
         node->win_id = subwin;
         node->mixer_id = i;
         node->btn = btn;
         node->next = NULL;
+        node->prev = NULL;
 
         if(list.first == NULL){
             list.first = node;
@@ -289,12 +284,22 @@ Button_List create_buttonlist(WinResources *R, Window parent, XContext *context,
             while(iter->next)
                 iter = iter->next;
             iter->next = node;
+            node->prev = iter;
         }
+
+        if(list.default_mixer==i)
+            list.current_mixer = node;
 
         list.length += 1;
 
         (void)mixer_close(m);
     }    
+
+    // wrap next of end to first of list
+    node->next = list.first;
+    // wrap prev of first to end of list
+    list.first->prev = node;
+    list.end = node;
 
     return(list);
 }
@@ -335,25 +340,25 @@ void reassign_foreground(WinResources *R, int new_defaultunit, Button_List *list
     }
 }
 
-void init_selected_mixer(WinResources *R, Button_List *list)
-{
-    Button_node *iter = list->first;
-    while(1){
-        if(iter->mixer_id == list->current_mixer){
-            XSetWindowAttributes attributes;
-            attributes.background_pixel = iter->btn->border;
-            attributes.border_pixel = iter->btn->background;
-            (iter->btn->foreground) = (iter->btn->inverted_fg);
-            XChangeWindowAttributes(R->display, iter->win_id,
-                                    CWBackPixel|CWBorderPixel, &attributes);
-            XClearArea(R->display, iter->win_id, 0,0, iter->btn->width,
-                       iter->btn->height, True);
-            break;
-        } 
+/* void init_selected_mixer(WinResources *R, Button_List *list) */
+/* { */
+/*     Button_node *iter = list->first; */
+/*     while(1){ */
+/*         if(iter->mixer_id == list->current_mixer){ */
+/*             XSetWindowAttributes attributes; */
+/*             attributes.background_pixel = iter->btn->border; */
+/*             attributes.border_pixel = iter->btn->background; */
+/*             (iter->btn->foreground) = (iter->btn->inverted_fg); */
+/*             XChangeWindowAttributes(R->display, iter->win_id, */
+/*                                     CWBackPixel|CWBorderPixel, &attributes); */
+/*             XClearArea(R->display, iter->win_id, 0,0, iter->btn->width, */
+/*                        iter->btn->height, True); */
+/*             break; */
+/*         } */ 
 
-        iter = iter->next;
-    }
-}
+/*         iter = iter->next; */
+/*     } */
+/* } */
 
 void get_mixer_info(size_t *nmixers, size_t *max_name_len)
 {
@@ -381,9 +386,8 @@ void get_mixer_info(size_t *nmixers, size_t *max_name_len)
 
 int get_defaultunit(void)
 {
-    int input;
+    int input = 0;
     size_t ilen = sizeof(input);
-    // TODO: errno str
     if(sysctlbyname("hw.snd.default_unit",&input,&ilen,NULL,0)==-1){
         perror("sysctlbyname() error\n");
         exit(EXIT_FAILURE);
@@ -391,6 +395,7 @@ int get_defaultunit(void)
     return(input);
 }
 
+// TODO: rename appropriately
 void set_defaultunit2(int mixer_id,Button_List *list)
 {
     /* TODO: alter for virtual_oss , call exec() */
@@ -404,6 +409,7 @@ void set_defaultunit2(int mixer_id,Button_List *list)
     printf("%d\n", mixer_id);
 }
 
+// TODO: used for mouse callback, remove later
 void set_defaultunit(void *unitdata)
 {
     UnitData *ud = (UnitData*)unitdata;
@@ -424,9 +430,14 @@ void set_defaultunit(void *unitdata)
     printf("%d\n", node->mixer_id);
 }
 
-XftGlyphFontSpec *init_default_indicator(WinResources *R, XftFont *font, uint32_t glyph)
+XftGlyphFontSpec *
+init_default_indicator(WinResources *R, XftFont *font, uint32_t glyph)
 {
     XftGlyphFontSpec *indicator_spec = malloc(sizeof(XftGlyphFontSpec));
+    if(indicator_spec==NULL){
+        printf("init_default_indicator() error : malloc\n");
+        exit(EXIT_FAILURE);
+    }
     
     uint32_t index = XftCharIndex(R->display,font,glyph);
     if(index){
@@ -435,10 +446,9 @@ XftGlyphFontSpec *init_default_indicator(WinResources *R, XftFont *font, uint32_
         indicator_spec->x = 10;
         indicator_spec->y = font->ascent;
     }else{
-        printf("init_default_indicator() error\n");
+        printf("init_default_indicator() error : no index\n");
         exit(EXIT_FAILURE);
     }
-    printf("%d\n",index);
 
     return(indicator_spec);
 }
