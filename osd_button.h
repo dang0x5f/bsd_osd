@@ -123,6 +123,7 @@ create_button(Display *display, Window *parent, Window *child, int depth,
     XftColorAllocName(display,visual,*colormap,inverted,&color);
     button->inverted_fg = color;
 
+    button->win = *child;
     button->draw = draw;
     button->xftfont = xftfont;
     button->background = background;

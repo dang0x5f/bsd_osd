@@ -63,6 +63,7 @@ WinResources *init_resources(void);    // Setup window essentials
 Button_List create_buttonlist(WinResources*,Window,XContext*,int,int,int,XftFont*);   
 void get_mixer_info(size_t*,size_t*);
 int get_defaultunit(void);     
+Window get_defaultunit_window(Button_List*);
 void set_defaultunit2(int,Button_List*);
 void init_selected_mixer(WinResources*,Button_List*);
 XftGlyphFontSpec *init_default_indicator(WinResources*,XftFont*,uint32_t);
@@ -134,23 +135,12 @@ int osd_outmixer(void)
                 if(btn) config_button(btn,&ev);
                 break;
             case Expose:
-                if(btn) expose_button(btn,&ev);
-    /* XftDrawGlyphFontSpec(button_list.first->btn->draw,&indic_color,indicator,1); */
-                break;
-            /* case EnterNotify: */
-            /*     if(btn) enter_button(btn,&ev); */
-            /*     break; */
-            /* case LeaveNotify: */
-            /*     if(btn) leave_button(btn,&ev); */
-            /*     break; */
-            case ButtonRelease:
                 if(btn){
-                    UnitData cbdata = { 
-                        .win_id = ev.xany.window, 
-                        .list = button_list 
-                    };
-                    btn->buttonRelease(&cbdata);
-                }
+                    expose_button(btn,&ev);
+                    if(btn->win == get_defaultunit_window(&button_list)){
+                        XftDrawGlyphFontSpec(btn->draw,&indic_color,indicator,1);
+                    }
+                } 
                 break;
             case KeyPress:
                 KeySym keysym = XLookupKeysym(&ev.xkey,0);
@@ -304,6 +294,17 @@ int get_defaultunit(void)
     return(input);
 }
 
+Window get_defaultunit_window(Button_List *list)
+{
+    Button_node *iter = list->first;
+    for(size_t i=0;i<list->length;++i){
+        if(iter->mixer_id == list->default_mixer)
+            return(iter->win_id);
+        iter = iter->next;
+    }
+    return(list->first->win_id);
+}
+
 // TODO: rename appropriately
 void set_defaultunit2(int mixer_id,Button_List *list)
 {
@@ -372,7 +373,7 @@ bool process_keypress(WinResources *R, Button_List *list, KeySym keysym)
             list->current_mixer = list->current_mixer->prev;
             break;
         case XK_Return:
-            XClearWindow(R->display,list->current_mixer->win_id);
+            /* XClearWindow(R->display,list->current_mixer->win_id); */
             set_defaultunit2(list->current_mixer->mixer_id,list);
             break;
         case XK_q:
@@ -384,5 +385,21 @@ bool process_keypress(WinResources *R, Button_List *list, KeySym keysym)
 
     return(running);
 }
+
+            /* case EnterNotify: */
+            /*     if(btn) enter_button(btn,&ev); */
+            /*     break; */
+            /* case LeaveNotify: */
+            /*     if(btn) leave_button(btn,&ev); */
+            /*     break; */
+            /* case ButtonRelease: */
+            /*     if(btn){ */
+            /*         UnitData cbdata = { */ 
+            /*             .win_id = ev.xany.window, */ 
+            /*             .list = button_list */ 
+            /*         }; */
+            /*         btn->buttonRelease(&cbdata); */
+            /*     } */
+            /*     break; */
 
 #endif
