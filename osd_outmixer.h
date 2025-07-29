@@ -51,13 +51,9 @@ typedef struct {
 
 #define XPOS 0
 #define YPOS 0
-#define WIDTH 300
-#define HEIGHT 400
-#define BORDER_PIXEL 2
 #define BLACK "#000000"
-#define GREEN "#00a500"
-#define LIGHT_GREEN "#90ee90"
-#define DARK_GREEN "#026440"
+#define RED40 "#CE2525"
+#define INDICATOR_COLOR RED40
 
 WinResources *init_resources(void);    // Setup window essentials
 Button_List create_buttonlist(WinResources*,Window,XContext*,int,int,int,XftFont*);   
@@ -71,7 +67,15 @@ void indicator_setup(WinResources*,XftFont*);
 bool process_keypress(WinResources*,Button_List*,KeySym);
 void draw_buttons(WinResources*,Button_List*,Button_node*);
 
-char *font_name = "Deja Vu Sans Mono:pixelsize=16";
+/* TODO: implement color system , free cols */
+/* void */
+/* XftColorFree (Display	*dpy, */
+/* 	      Visual	*visual, */
+/* 	      Colormap	cmap, */
+/* 	      XftColor	*color); */
+const uint32_t border_pixel = 2;
+const uint32_t vert_between_pad = 3;
+const char *font_name = "Deja Vu Sans Mono:pixelsize=16";
 
 /* TODO: struct */
 /* include size for draw call */ 
@@ -82,50 +86,52 @@ void indicator_setup(WinResources *R,XftFont *font)
 {
     uint32_t glyph = 0x2023;
     indicator = init_default_indicator(R, font, glyph);
-    XftColorAllocName(R->display,R->visual,R->colormap,"#00FF00",&indic_color);
+    XftColorAllocName(R->display,R->visual,R->colormap,INDICATOR_COLOR,&indic_color);
 }
 
 int osd_outmixer(void)
 {
-    XContext context = XUniqueContext();
-
-    WinResources *R = init_resources();
-
-    XftFont *font = font_setup(R->display,R->screen_num,font_name);
-    indicator_setup(R,font);
-
+    XEvent ev;
+    Button_List button_list;
+    bool running=true;
     size_t nmixers, max_name_len;
-    get_mixer_info(&nmixers,&max_name_len);
-    printf("%zu\n",nmixers);
+    int32_t x_pos = 0; 
+    int32_t y_pos = 0;
+    uint32_t width = 0;
+    uint32_t height = 0;
+    uint32_t width_pad = 0;
+    uint32_t button_width = 0;
+    uint32_t button_height = 0;
 
-    int ypadding = 3;
-    int padding = 5;
-    int width = font->max_advance_width * max_name_len+(BORDER_PIXEL*2) + (padding*2);
-    int height = ((font->ascent+font->descent+(BORDER_PIXEL*2))*(nmixers-1));
-    height += (ypadding*(nmixers-2));
-    /* int xpos = DisplayWidth(R->display,R->screen_num); clang warning */
-    int ypos = DisplayHeight(R->display,R->screen_num);
-    /* ypos = (ypos/2)-(height/2); */
-    ypos = ypos - (height+(BORDER_PIXEL*2));
+    XContext context = XUniqueContext();
+    WinResources *R  = init_resources();
+    XftFont *font    = font_setup(R->display,R->screen_num,font_name);
+    Window root      = DefaultRootWindow(R->display);
+
+    indicator_setup(R,font);
+    get_mixer_info(&nmixers,&max_name_len);
+
+    width_pad = font->max_advance_width;
+    button_width  = (font->max_advance_width*max_name_len)+(width_pad*2);
+    button_height = (font->ascent+font->descent);
+    width  = (button_width)+(border_pixel*2);
+    height = ((button_height+(border_pixel*2))*(nmixers-1))+(vert_between_pad*(nmixers-2));
+    y_pos  = DisplayHeight(R->display,R->screen_num)-(height+(border_pixel*2));;
     
-    Window root = DefaultRootWindow(R->display);
-    Window window = XCreateWindow(R->display,root,XPOS,ypos,width,height,
-                                  BORDER_PIXEL,R->depth,CopyFromParent,
+    Window window = XCreateWindow(R->display,root,x_pos,y_pos,width,height,
+                                  border_pixel,R->depth,CopyFromParent,
                                   R->visual,R->valuemask,&R->attributes);
 
-    int width1 =  font->max_advance_width * max_name_len;
-    /* TODO: maybe add vertical padding */
-    int height1 = font->ascent+font->descent;
-    Button_List button_list;
-    button_list = create_buttonlist(R,window,&context,width1,height1,nmixers,font);
+    button_list = create_buttonlist(R,window,&context,button_width,
+                                    button_height,nmixers,font);
+
     init_selected_mixer(R,&button_list);
 
     XMapWindow(R->display,window);
     XSync(R->display,false);
+
     XGrabKeyboard(R->display,window,true,GrabModeAsync,GrabModeAsync,CurrentTime);
 
-    bool running=true;
-    XEvent ev;
     while(running){
         osd_button *btn = NULL;
         XNextEvent(R->display,&ev);
@@ -185,19 +191,12 @@ Button_List create_buttonlist(WinResources *R, Window parent, XContext *context,
 {
     Button_List list = { .first = NULL, .length = 0 };
     list.default_mixer = get_defaultunit();
+    Button_node *node;
 
     Button *btn;
     Window subwin;
-    int ypad = 3;
     struct mixer *m;
     char buffer[NAME_MAX];
-    Button_node *node;
-    /* TODO: implement color system , free cols */
-    /* void */
-    /* XftColorFree (Display	*dpy, */
-    /* 	      Visual	*visual, */
-    /* 	      Colormap	cmap, */
-    /* 	      XftColor	*color); */
     char* fg_color = BLACK;
 
     for(int i=0; i<nmixers; ++i){
@@ -208,8 +207,8 @@ Button_List create_buttonlist(WinResources *R, Window parent, XContext *context,
         char *name = malloc(sizeof(char)*name_len);
         strncpy(name,m->ci.longname,name_len);
         btn = create_button(R->display, &parent, &subwin, R->depth, R->visual, 
-                            *context, 0, ((height+(BORDER_PIXEL*2))*i)+(ypad*i), 
-                            width, &R->colormap, BORDER_PIXEL,0x333333, 0xbbbbbb, 
+                            *context, 0, ((height+(border_pixel*2))*i)+(vert_between_pad*i), 
+                            width, &R->colormap, border_pixel,0x333333, 0xbbbbbb, 
                             fg_color, name, name_len, NULL, font);
 
         /* TODO: free */
@@ -332,7 +331,7 @@ init_default_indicator(WinResources *R, XftFont *font, uint32_t glyph)
     if(index){
         indicator_spec->font = font;
         indicator_spec->glyph = index;
-        indicator_spec->x = 10;
+        indicator_spec->x = 0;
         indicator_spec->y = font->ascent;
     }else{
         printf("init_default_indicator() error : no index\n");

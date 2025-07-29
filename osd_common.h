@@ -3,13 +3,13 @@
 
 #define MAX(a,b) ((a)>(b)?(a):(b))
 
-XftFont *font_setup(Display*,int,char*);
+XftFont *font_setup(Display*,int,const char*);
 
 #endif // OSD_COMMON_H
 
 #ifdef OSD_COMMON_IMPLEMENTATION
 
-XftFont *font_setup(Display* display, int screen_num, char *font_name)
+XftFont *font_setup(Display* display, int screen_num, const char *font_name)
 {
     XftFont *font = XftFontOpenName(display,screen_num,font_name);
     if(!font){
