@@ -32,12 +32,12 @@ typedef struct  {
     Display *display;
     int screen_num;
     Colormap colormap;
-    int depth;
+    uint32_t depth;
     Visual *visual;
     XSetWindowAttributes attributes;
-    int valuemask;
-    int width;
-    int height;
+    uint32_t valuemask;
+    uint32_t width;
+    uint32_t height;
 } WinResources;
 
 typedef struct {
@@ -55,12 +55,12 @@ typedef struct {
 #define RED40 "#CE2525"
 #define INDICATOR_COLOR RED40
 
-WinResources *init_resources(void);    // Setup window essentials
-Button_List create_buttonlist(WinResources*,Window,XContext*,int,int,int,XftFont*);   
+WinResources *init_resources(void);    
+Button_List create_buttonlist(WinResources*,Window,XContext*,uint32_t,uint32_t,int,XftFont*);   
 void get_mixer_info(size_t*,size_t*);
 int get_defaultunit(void);     
 Window get_defaultunit_window(Button_List*);
-void set_defaultunit2(int,Button_List*);
+void set_defaultunit(int,Button_List*);
 void init_selected_mixer(WinResources*,Button_List*);
 XftGlyphFontSpec *init_default_indicator(WinResources*,XftFont*,uint32_t);
 void indicator_setup(WinResources*,XftFont*);
@@ -72,7 +72,7 @@ void draw_buttons(WinResources*,Button_List*,Button_node*);
 XftColor indic_color;
 XftGlyphFontSpec *indicator;
 const uint32_t border_pixel = 2;
-const uint32_t vert_between_pad = 3;
+const uint32_t margin = 3;
 const char *font_name = "Deja Vu Sans Mono:pixelsize=16";
 
 int osd_outmixer(void)
@@ -81,13 +81,9 @@ int osd_outmixer(void)
     Button_List button_list;
     bool running=true;
     size_t nmixers, max_name_len;
-    int32_t x_pos = 0; 
-    int32_t y_pos = 0;
-    uint32_t width = 0;
-    uint32_t height = 0;
+    int32_t x_pos=0, y_pos=0; 
     uint32_t width_pad = 0;
-    uint32_t button_width = 0;
-    uint32_t button_height = 0;
+    uint32_t button_width=0, button_height=0;
 
     XContext context = XUniqueContext();
     WinResources *R  = init_resources();
@@ -100,11 +96,11 @@ int osd_outmixer(void)
     width_pad = font->max_advance_width;
     button_width  = (font->max_advance_width*max_name_len)+(width_pad*2);
     button_height = (font->ascent+font->descent);
-    width  = (button_width)+(border_pixel*2)+(vert_between_pad*2);
-    height = ((button_height+(border_pixel*2))*(nmixers))+(vert_between_pad*(nmixers+1));
-    y_pos  = DisplayHeight(R->display,R->screen_num)-(height+(border_pixel*2));
+    R->width  = (button_width)+(border_pixel*2)+(margin*2);
+    R->height = ((button_height+(border_pixel*2))*(nmixers))+(margin*(nmixers+1));
+    y_pos  = DisplayHeight(R->display,R->screen_num)-(R->height+(border_pixel*2));
     
-    Window window = XCreateWindow(R->display,root,x_pos,y_pos,width,height,
+    Window window = XCreateWindow(R->display,root,x_pos,y_pos,R->width,R->height,
                                   border_pixel,R->depth,CopyFromParent,
                                   R->visual,R->valuemask,&R->attributes);
 
@@ -173,7 +169,7 @@ WinResources *init_resources(void)
 }
 
 Button_List create_buttonlist(WinResources *R, Window parent, XContext *context, 
-                              int width, int height, int nmixers, XftFont *font)
+                              uint32_t width, uint32_t height, int nmixers, XftFont *font)
 {
     Button_List list = { .first = NULL, .length = 0 };
     list.default_mixer = get_defaultunit();
@@ -193,8 +189,8 @@ Button_List create_buttonlist(WinResources *R, Window parent, XContext *context,
         char *name = malloc(sizeof(char)*name_len);
         strncpy(name,m->ci.longname,name_len);
         btn = create_button(R->display, &parent, &subwin, R->depth, R->visual, 
-                            *context, vert_between_pad, 
-                            ((height+(border_pixel*2))*i)+(vert_between_pad*i)+vert_between_pad, 
+                            *context, margin, 
+                            ((height+(border_pixel*2))*i)+(margin*i)+margin, 
                             width, height, &R->colormap, border_pixel,0x333333, 0xbbbbbb, 
                             fg_color, name, name_len, NULL, font);
 
@@ -292,8 +288,7 @@ Window get_defaultunit_window(Button_List *list)
     return(list->first->win_id);
 }
 
-// TODO: rename appropriately
-void set_defaultunit2(int mixer_id,Button_List *list)
+void set_defaultunit(int mixer_id,Button_List *list)
 {
     /* TODO: alter for virtual_oss , call exec() */
 
@@ -360,8 +355,7 @@ bool process_keypress(WinResources *R, Button_List *list, KeySym keysym)
             list->current_mixer = list->current_mixer->prev;
             break;
         case XK_Return:
-            /* XClearWindow(R->display,list->current_mixer->win_id); */
-            set_defaultunit2(list->current_mixer->mixer_id,list);
+            set_defaultunit(list->current_mixer->mixer_id,list);
             break;
         case XK_q:
         case XK_Escape:
