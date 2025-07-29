@@ -38,7 +38,7 @@ typedef struct {
 } osd_button;
 
 osd_button *create_button(Display*,Window*,Window*,int,Visual*,XContext, int,
-                          int,int,Colormap*,int,int,int,char*,char*,size_t,
+                          int,int,int,Colormap*,int,int,int,char*,char*,size_t,
                           Callback,XftFont*);
 void expose_button(osd_button*,XEvent*);
 void config_button(osd_button*,XEvent*);
@@ -89,7 +89,7 @@ bool isvalid_color(char *hex)
 // osd_button 
 osd_button *
 create_button(Display *display, Window *parent, Window *child, int depth, 
-              Visual *visual, XContext context, int x, int y, int width, 
+              Visual *visual, XContext context, int x, int y, int width, int height,
               Colormap *colormap, int border_px, int border, int background, char *foreground, 
               char *label, size_t label_len, Callback cb_func, XftFont *xftfont)
 {
@@ -100,8 +100,6 @@ create_button(Display *display, Window *parent, Window *child, int depth,
         .border_pixel = border,
         .event_mask = def_eventmask,
     };
-    /* int ypadding = 3; unused */
-    int height = (xftfont->ascent+xftfont->descent);
 
     *child = XCreateWindow(display,*parent,x,y,width,height,border_px, depth,
                            class,visual,valuemask,&attributes);

@@ -67,27 +67,13 @@ void indicator_setup(WinResources*,XftFont*);
 bool process_keypress(WinResources*,Button_List*,KeySym);
 void draw_buttons(WinResources*,Button_List*,Button_node*);
 
-/* TODO: implement color system , free cols */
-/* void */
-/* XftColorFree (Display	*dpy, */
-/* 	      Visual	*visual, */
-/* 	      Colormap	cmap, */
-/* 	      XftColor	*color); */
-const uint32_t border_pixel = 2;
-const uint32_t vert_between_pad = 3;
-const char *font_name = "Deja Vu Sans Mono:pixelsize=16";
-
 /* TODO: struct */
 /* include size for draw call */ 
 XftColor indic_color;
 XftGlyphFontSpec *indicator;
-
-void indicator_setup(WinResources *R,XftFont *font)
-{
-    uint32_t glyph = 0x2023;
-    indicator = init_default_indicator(R, font, glyph);
-    XftColorAllocName(R->display,R->visual,R->colormap,INDICATOR_COLOR,&indic_color);
-}
+const uint32_t border_pixel = 2;
+const uint32_t vert_between_pad = 3;
+const char *font_name = "Deja Vu Sans Mono:pixelsize=16";
 
 int osd_outmixer(void)
 {
@@ -114,9 +100,9 @@ int osd_outmixer(void)
     width_pad = font->max_advance_width;
     button_width  = (font->max_advance_width*max_name_len)+(width_pad*2);
     button_height = (font->ascent+font->descent);
-    width  = (button_width)+(border_pixel*2);
-    height = ((button_height+(border_pixel*2))*(nmixers-1))+(vert_between_pad*(nmixers-2));
-    y_pos  = DisplayHeight(R->display,R->screen_num)-(height+(border_pixel*2));;
+    width  = (button_width)+(border_pixel*2)+(vert_between_pad*2);
+    height = ((button_height+(border_pixel*2))*(nmixers))+(vert_between_pad*(nmixers+1));
+    y_pos  = DisplayHeight(R->display,R->screen_num)-(height+(border_pixel*2));
     
     Window window = XCreateWindow(R->display,root,x_pos,y_pos,width,height,
                                   border_pixel,R->depth,CopyFromParent,
@@ -172,7 +158,7 @@ WinResources *init_resources(void)
     res->visual     = DefaultVisual(res->display,res->screen_num);
 
     res->attributes.override_redirect = true;
-    res->attributes.background_pixel  = 0xffffff;
+    res->attributes.background_pixel  = 0x555555;
     res->attributes.border_pixel      = 0xfffdd0;
     res->attributes.event_mask = ExposureMask
                                | KeyPressMask
@@ -207,8 +193,9 @@ Button_List create_buttonlist(WinResources *R, Window parent, XContext *context,
         char *name = malloc(sizeof(char)*name_len);
         strncpy(name,m->ci.longname,name_len);
         btn = create_button(R->display, &parent, &subwin, R->depth, R->visual, 
-                            *context, 0, ((height+(border_pixel*2))*i)+(vert_between_pad*i), 
-                            width, &R->colormap, border_pixel,0x333333, 0xbbbbbb, 
+                            *context, vert_between_pad, 
+                            ((height+(border_pixel*2))*i)+(vert_between_pad*i)+vert_between_pad, 
+                            width, height, &R->colormap, border_pixel,0x333333, 0xbbbbbb, 
                             fg_color, name, name_len, NULL, font);
 
         /* TODO: free */
@@ -280,6 +267,7 @@ void get_mixer_info(size_t *nmixers, size_t *max_name_len)
          
         (void)mixer_close(m);
     }    
+    --(*nmixers);
 }
 
 int get_defaultunit(void)
@@ -385,20 +373,11 @@ bool process_keypress(WinResources *R, Button_List *list, KeySym keysym)
     return(running);
 }
 
-            /* case EnterNotify: */
-            /*     if(btn) enter_button(btn,&ev); */
-            /*     break; */
-            /* case LeaveNotify: */
-            /*     if(btn) leave_button(btn,&ev); */
-            /*     break; */
-            /* case ButtonRelease: */
-            /*     if(btn){ */
-            /*         UnitData cbdata = { */ 
-            /*             .win_id = ev.xany.window, */ 
-            /*             .list = button_list */ 
-            /*         }; */
-            /*         btn->buttonRelease(&cbdata); */
-            /*     } */
-            /*     break; */
+void indicator_setup(WinResources *R,XftFont *font)
+{
+    uint32_t glyph = 0x2023;
+    indicator = init_default_indicator(R, font, glyph);
+    XftColorAllocName(R->display,R->visual,R->colormap,INDICATOR_COLOR,&indic_color);
+}
 
 #endif
