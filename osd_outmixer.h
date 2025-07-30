@@ -31,6 +31,7 @@ typedef struct {
 typedef struct  {
     Display *display;
     int screen_num;
+    XftDraw *draw;
     Colormap colormap;
     uint32_t depth;
     Visual *visual;
@@ -40,18 +41,12 @@ typedef struct  {
     uint32_t height;
 } WinResources;
 
-typedef struct {
-    Window win_id;
-    Button_List list;
-} UnitData;
-
 #endif
 
 #ifdef OSD_OUTMIXER_IMPLEMENTATION
 
-#define XPOS 0
-#define YPOS 0
 #define BLACK "#000000"
+#define WHITE "#FFFFFF"
 #define RED40 "#CE2525"
 #define INDICATOR_COLOR RED40
 
@@ -65,6 +60,7 @@ void init_selected_mixer(WinResources*,Button_List*);
 XftGlyphFontSpec *init_default_indicator(WinResources*,XftFont*,uint32_t);
 void indicator_setup(WinResources*,XftFont*);
 bool process_keypress(WinResources*,Button_List*,KeySym);
+void draw_header(WinResources*,XftFont*);
 void draw_buttons(WinResources*,Button_List*,Button_node*);
 
 /* TODO: struct */
@@ -74,6 +70,7 @@ XftGlyphFontSpec *indicator;
 const uint32_t border_pixel = 2;
 const uint32_t margin = 3;
 const char *font_name = "Deja Vu Sans Mono:pixelsize=16";
+const char *header_text = "Select Output Device";
 
 int osd_outmixer(void)
 {
@@ -108,6 +105,7 @@ int osd_outmixer(void)
     Window window = XCreateWindow(R->display,root,x_pos,y_pos,R->width,R->height,
                                   border_pixel,R->depth,CopyFromParent,
                                   R->visual,R->valuemask,&R->attributes);
+    R->draw = XftDrawCreate(R->display,window,R->visual,R->colormap);
 
     button_list = create_buttonlist(R,window,&context,button_width,
                                     button_height,nmixers,nlines,font);
@@ -119,6 +117,7 @@ int osd_outmixer(void)
 
     XGrabKeyboard(R->display,window,true,GrabModeAsync,GrabModeAsync,CurrentTime);
 
+    draw_header(R,font);
     while(running){
         osd_button *btn = NULL;
         XNextEvent(R->display,&ev);
@@ -331,6 +330,15 @@ init_default_indicator(WinResources *R, XftFont *font, uint32_t glyph)
     }
 
     return(indicator_spec);
+}
+
+void draw_header(WinResources *R, XftFont *font)
+{
+    XftColor header_color;
+    size_t len = strlen(header_text);
+    XftColorAllocName(R->display,R->visual,R->colormap,WHITE,&header_color);
+    XftDrawStringUtf8(R->draw,&header_color,font, margin+(border_pixel*2), 
+                      font->ascent+margin+border_pixel, (FcChar8*)header_text, len);
 }
 
 void draw_buttons(WinResources *R, Button_List *list, Button_node *node)
