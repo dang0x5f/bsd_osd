@@ -202,7 +202,6 @@ Button_List create_buttonlist(WinResources *R, Window parent, XContext *context,
                                    0x333333, 0xbbbbbb, fg_color, name, name_len, 
                                    NULL, font);
 
-        /* TODO: free */
         node = malloc(sizeof(Button_node));
         node->win_id = subwin;
         node->mixer_id = i;
@@ -360,26 +359,31 @@ void draw_buttons(WinResources *R, Button_List *list, Button_node *node)
 
 bool process_keypress(WinResources *R, Button_List *list, KeySym keysym)
 {
-    bool running = true;
+    bool running=true, redraw=false;
     Button_node *node;
     node = list->first;
 
     switch(keysym){
+        case XK_Down:
         case XK_j:
             list->current_mixer = list->current_mixer->next;
+            redraw=true;
             break;
+        case XK_Up:  
         case XK_k:
             list->current_mixer = list->current_mixer->prev;
+            redraw=true;
             break;
         case XK_Return:
             set_defaultunit(list->current_mixer->mixer_id,list);
+            redraw=true;
             break;
         case XK_q:
         case XK_Escape:
             running=false;
             break;
     }
-    draw_buttons(R,list,node);
+    if(redraw) draw_buttons(R,list,node);
 
     return(running);
 }

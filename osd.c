@@ -38,7 +38,8 @@ int main(int argc, char **argv)
                 osd_volume(optarg[0]);
                 break;
             case 'm':
-                osd_outmixer();
+                if(optarg[0]=='o')
+                    osd_outmixer();
                 break;
             case 'h':
             case '?':
