@@ -14,7 +14,7 @@ typedef osd_button Button;
 
 typedef struct node_t{
     Window win_id;
-    int mixer_id;
+    uint8_t mixer_id;
     Button *btn;
     struct node_t *next;
     struct node_t *prev;
@@ -23,7 +23,7 @@ typedef struct node_t{
 typedef struct {
     Button_node *first;
     Button_node *end;
-    int default_mixer;
+    uint8_t default_mixer;
     Button_node *current_mixer;
     size_t length;
 } Button_List;
@@ -56,7 +56,7 @@ typedef struct {
 #define INDICATOR_COLOR RED40
 
 WinResources *init_resources(void);    
-Button_List create_buttonlist(WinResources*,Window,XContext*,uint32_t,uint32_t,int,XftFont*);   
+Button_List create_buttonlist(WinResources*,Window,XContext*,uint32_t,uint32_t,uint32_t,uint32_t,XftFont*);   
 void get_mixer_info(size_t*,size_t*);
 int get_defaultunit(void);     
 Window get_defaultunit_window(Button_List*);
@@ -80,9 +80,11 @@ int osd_outmixer(void)
     XEvent ev;
     Button_List button_list;
     bool running=true;
-    size_t nmixers, max_name_len;
+    size_t nmixers=0, max_name_len=0;
     int32_t x_pos=0, y_pos=0; 
-    uint32_t width_pad = 0;
+    uint32_t nheaders = 1;
+    uint32_t line_height=0, nlines=0;
+    uint32_t width_pad=0;
     uint32_t button_width=0, button_height=0;
 
     XContext context = XUniqueContext();
@@ -93,11 +95,14 @@ int osd_outmixer(void)
     indicator_setup(R,font);
     get_mixer_info(&nmixers,&max_name_len);
 
+    nlines = nmixers + nheaders;
+    line_height = (font->ascent+font->descent);
+
     width_pad = font->max_advance_width;
     button_width  = (font->max_advance_width*max_name_len)+(width_pad*2);
-    button_height = (font->ascent+font->descent);
+    button_height = line_height;
     R->width  = (button_width)+(border_pixel*2)+(margin*2);
-    R->height = ((button_height+(border_pixel*2))*(nmixers))+(margin*(nmixers+1));
+    R->height = ((line_height+(border_pixel*2))*(nlines))+(margin*(nlines+1));
     y_pos  = DisplayHeight(R->display,R->screen_num)-(R->height+(border_pixel*2));
     
     Window window = XCreateWindow(R->display,root,x_pos,y_pos,R->width,R->height,
@@ -105,7 +110,7 @@ int osd_outmixer(void)
                                   R->visual,R->valuemask,&R->attributes);
 
     button_list = create_buttonlist(R,window,&context,button_width,
-                                    button_height,nmixers,font);
+                                    button_height,nmixers,nlines,font);
 
     init_selected_mixer(R,&button_list);
 
@@ -169,36 +174,40 @@ WinResources *init_resources(void)
 }
 
 Button_List create_buttonlist(WinResources *R, Window parent, XContext *context, 
-                              uint32_t width, uint32_t height, int nmixers, XftFont *font)
+                              uint32_t width, uint32_t height, uint32_t nmixers, 
+                              uint32_t nlines, XftFont *font)
 {
     Button_List list = { .first = NULL, .length = 0 };
     list.default_mixer = get_defaultunit();
     Button_node *node;
 
-    Button *btn;
+    Button *button_win;
     Window subwin;
     struct mixer *m;
     char buffer[NAME_MAX];
     char* fg_color = BLACK;
 
-    for(int i=0; i<nmixers; ++i){
+    uint32_t header_height = (nlines-nmixers?margin+height+(border_pixel*2):0);
+
+    for(uint32_t i=0; i<nmixers; ++i){
         mixer_get_path(buffer, sizeof(buffer), i);
         if((m=mixer_open(buffer))==NULL) continue;
 
         size_t name_len = strlen(m->ci.longname);
         char *name = malloc(sizeof(char)*name_len);
         strncpy(name,m->ci.longname,name_len);
-        btn = create_button(R->display, &parent, &subwin, R->depth, R->visual, 
-                            *context, margin, 
-                            ((height+(border_pixel*2))*i)+(margin*i)+margin, 
-                            width, height, &R->colormap, border_pixel,0x333333, 0xbbbbbb, 
-                            fg_color, name, name_len, NULL, font);
+        button_win = create_button(R->display, &parent, &subwin, R->depth, 
+                                   R->visual, *context, margin, 
+                                   ((height+(border_pixel*2))*i)+(margin*i)+header_height+margin, 
+                                   width, height, &R->colormap, border_pixel,
+                                   0x333333, 0xbbbbbb, fg_color, name, name_len, 
+                                   NULL, font);
 
         /* TODO: free */
         node = malloc(sizeof(Button_node));
         node->win_id = subwin;
         node->mixer_id = i;
-        node->btn = btn;
+        node->btn = button_win;
         node->next = NULL;
         node->prev = NULL;
 
