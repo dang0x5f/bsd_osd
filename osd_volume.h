@@ -33,17 +33,48 @@ float getvolume(void);
 void sig_handler(int);
 void change_volume(char);
 int create_volume_lock(void);
-XftGlyphFontSpec *getspec1(Display*, XftFont*, float);
-XftGlyphFontSpec *getspec2(Display*, XftFont*, float);
 
+char *numeric_str;
+char *volume_str = "VOLUME";
+char *muted_str = "MUTED";
+
+void draw_vol(Display *, XftDraw *, XftColor *, XftFont *, size_t );
+void draw_spec(Display *, XftDraw *, XftColor *, XftFont *, XftGlyphFontSpec *, size_t );
+XftGlyphFontSpec *create_spec(Display*,XftFont*,uint32_t,uint32_t,size_t);
+XftGlyphFontSpec *spec;
 
 bool timeup=false;
-int padding = 10;
+int padding = 5;
 double duration = 5.0;
 time_t start_time, curr_time;
-char *def_line1 = "VOLUME              "; // len=SZ
-char *muted_str = "MUTED";
+
 char *font_pattern = "Deja Vu Sans Mono:pixelsize=20";
+
+void draw_vol(Display *display, XftDraw *draw, XftColor *color, XftFont *font, size_t sz)
+{
+    if(is_muted()){
+        XftDrawStringUtf8(draw,color,font,(font->max_advance_width*15)+padding,font->ascent,(FcChar8*)muted_str,5);  
+    }else{
+        uint32_t volume = (uint32_t)(getvolume()*100);
+        char volbuffer[3] = {' ',' ',' '};
+        for(int i=2; i>=0; --i){
+            volbuffer[i] = (volume%10)+'0';
+            if(volume<10) break;
+            volume /= 10;
+        }
+        
+        XftDrawStringUtf8(draw,color,font,(font->max_advance_width*17)+padding,font->ascent,(FcChar8*)volbuffer,3);  
+        
+    }
+}
+
+void draw_spec(Display *display, XftDraw *draw, XftColor *color, XftFont *xftfont, XftGlyphFontSpec *spec, size_t sz)
+{
+    float volume = getvolume();
+    uint8_t nblock = (volume*100)/5;
+
+    XftDrawGlyphFontSpec(draw,color,spec,nblock);
+}
 
 void osd_volume(char operation)
 {
@@ -66,7 +97,6 @@ void osd_volume(char operation)
     Window window;
     XftColor color;
     XftFont *xftfont;
-    // XGlyphInfo xgi;
     XftDraw *draw;
     XSetWindowAttributes attributes = { 
         .override_redirect=true,
@@ -89,12 +119,11 @@ void osd_volume(char operation)
     valuemask   = CWOverrideRedirect|CWBackPixel|CWEventMask|CWBorderPixel;
     XftColorAllocName(display,visual,colormap,"#00FF00",&color);
 
-    // int win_width  = xftfont->max_advance_width*SZ;
+    uint32_t nlines = 2;
+    uint32_t line_height = (xftfont->ascent+xftfont->descent);
+
     int win_width  = (xftfont->max_advance_width*SZ) + (padding*2);
-    // int win_height = xftfont->height*2;
-    // int win_height = (xftfont->height*2) + (xftfont->descent*2);
-    // int win_height = xftfont->ascent*2;
-    int win_height = (xftfont->ascent*2) + (padding*2) +PX_BETWEEN;
+    uint32_t win_height = (line_height*nlines) + (padding*2) +PX_BETWEEN;
     int x = (scrn_width*0.5)-(win_width*0.5);
     int y = (scrn_height)*0.75;
     
@@ -106,6 +135,11 @@ void osd_volume(char operation)
     XMapWindow(display,window);
     XSync(display,false);
 
+    XftDrawStringUtf8(draw,&color,xftfont, padding, xftfont->ascent, (FcChar8*)volume_str, 6);  
+
+    uint32_t height2 = line_height + xftfont->ascent + padding;
+    XftGlyphFontSpec *spec = create_spec(display,xftfont,0x2588,height2,SZ);
+
     time(&start_time);
     XEvent event;
     int mute_status = is_muted();
@@ -115,22 +149,18 @@ void osd_volume(char operation)
         XNextEvent(display,&event);
         switch(event.type){
             case Expose:
-                XClearWindow(display,window);
-                // int lineno = 1;
+                XClearArea(display,window,win_width/2,0,0,xftfont->ascent+padding,false);
+                XClearArea(display,window,0,xftfont->ascent+xftfont->descent+(padding),0,0,false);
                 volume = getvolume();
-                XftGlyphFontSpec *spec1 = getspec1(display,xftfont,volume);
-                XftGlyphFontSpec *spec2 = getspec2(display,xftfont,volume);
-                XftDrawGlyphFontSpec(draw,&color,spec1,SZ);
-                XftDrawGlyphFontSpec(draw,&color,spec2,SZ);
-                free(spec1);
-                free(spec2);
+                draw_vol(display, draw, &color, xftfont, SZ);
+                draw_spec(display, draw, &color, xftfont, spec, SZ);
                 break;
             case VisibilityNotify:
                 XRaiseWindow(display,window);
                 break;
         }
         
-        usleep(33333);
+        usleep(50000);
         time(&curr_time);
         difference = difftime(curr_time,start_time);
 
@@ -139,21 +169,20 @@ void osd_volume(char operation)
             mute_status = is_muted();
             temp.type=Expose;
             raise(SIGUSR1);
-        }else{
-            temp.type=VisibilityNotify;
         }
         XSendEvent(display,window,0,0,&temp);
-        /* XFlush(display); */
 
         if(difference >= duration) timeup=true;
     }
     remove(OSD_VOLUME_LOCK);
-    // TODO: free allocation
+    
+    XDestroyWindow(display,window);
+    XCloseDisplay(display);
 }
 
 int is_muted(void)
 {
-    int muted = 0;
+    int ismuted = 0;
     struct mixer *m;
     char *mix_name, *dev_name;
 
@@ -165,25 +194,18 @@ int is_muted(void)
     if(!(m->dev=mixer_get_dev_byname(m,dev_name)))
         err(1,"unknown device: %s", dev_name);
 
-    muted = MIX_ISMUTE(m, m->dev->devno);
+    ismuted = MIX_ISMUTE(m, m->dev->devno);
     mixer_close(m);
     /* printf("%d\n",muted); */
-    return(muted);
+    return(ismuted);
 }
 
-XftGlyphFontSpec *getspec1(Display *display, XftFont *font, float volume)
+XftGlyphFontSpec *create_spec(Display *display, XftFont *font, uint32_t glyph, uint32_t height, size_t sz)
 {
-    int vol = volume*100;
-    XftGlyphFontSpec *spec = malloc(sizeof(XftGlyphFontSpec)*SZ);
-    // TODO: add malloc ptr check
+    XftGlyphFontSpec *spec = malloc(sizeof(XftGlyphFontSpec)*sz);
 
-    int xpos=padding, ypos=(font->ascent-font->descent) +padding;
-    for(int i=0; i<SZ; ++i){
-        uint32_t glyph = (uint32_t)0x00 << 24 |
-                         (uint32_t)0x00 << 16 |
-                         (uint32_t)0x00 <<  8 |
-                 (uint32_t)def_line1[i] <<  0 ;
-        
+    int32_t xpos=padding, ypos=height;
+    for(size_t i=0; i<sz; ++i){
         uint32_t idx = XftCharIndex(display,font,glyph);
         if(idx){
             spec[i].font = font;
@@ -193,74 +215,6 @@ XftGlyphFontSpec *getspec1(Display *display, XftFont *font, float volume)
             xpos += font->max_advance_width;
         }
     }
-
-    if(is_muted()){
-        for(int i=(SZ)-strlen(muted_str),j=0 ; i<SZ ; ++i, ++j){
-            char c = muted_str[j];
-            uint32_t glyph = (uint32_t)0x00 << 24 |
-                             (uint32_t)0x00 << 16 |
-                             (uint32_t)0x00 <<  8 |
-                             (uint32_t)   c <<  0 ;
-            uint32_t idx = XftCharIndex(display,font,glyph);
-            spec[i].glyph = idx;
-        }
-    }else{
-        for(int i=SZ-1; ; --i){
-            char c = (vol%10)+'0';
-            uint32_t glyph = (uint32_t)0x00 << 24 |
-                             (uint32_t)0x00 << 16 |
-                             (uint32_t)0x00 <<  8 |
-                             (uint32_t)   c <<  0 ;
-            uint32_t idx = XftCharIndex(display,font,glyph);
-            spec[i].glyph = idx;
-            if(vol<10) break;
-            vol /= 10;
-        }
-    }
-
-    return(spec);
-}
-
-XftGlyphFontSpec *getspec2(Display *display, XftFont *font, float volume)
-{
-    int vol = volume*100;
-    XftGlyphFontSpec *spec = malloc(sizeof(XftGlyphFontSpec)*SZ);
-    // TODO: add malloc ptr check
-
-    int xpos=padding, ypos=(font->ascent*2-font->descent) +padding +PX_BETWEEN;
-    int nblock = vol/5;
-    int i=0;
-    for(;i<nblock;++i){
-        uint32_t glyph = (uint32_t)0x00 << 24 |
-                         (uint32_t)0x00 << 16 |
-                         (uint32_t)0x25 <<  8 |
-                         (uint32_t)0x88 <<  0 ;
-        
-        uint32_t idx = XftCharIndex(display,font,glyph);
-        if(idx){
-            spec[i].font = font;
-            spec[i].glyph = idx;
-            spec[i].x = xpos;
-            spec[i].y = ypos;
-            xpos += font->max_advance_width;
-        }
-    }
-    for(;i<SZ;++i){
-        uint32_t glyph = (uint32_t)0x00 << 24 |
-                         (uint32_t)0x00 << 16 |
-                         (uint32_t)0x00 <<  8 |
-                         (uint32_t)0x5f <<  0 ;
-        
-        uint32_t idx = XftCharIndex(display,font,glyph);
-        if(idx){
-            spec[i].font = font;
-            spec[i].glyph = idx;
-            spec[i].x = xpos;
-            spec[i].y = ypos;
-            xpos += font->max_advance_width;
-        }
-    }
-    
     return(spec);
 }
 

@@ -127,7 +127,7 @@ create_button(Display *display, Window *parent, Window *child, int depth,
     button->width = width;
     button->height = height;
     /* button->x = (width/2)-((xftfont->max_advance_width * label_len)/2); */
-    button->x = padding;
+    button->x = xftfont->max_advance_width;
     /* button->y = xftfont->ascent+(padding/2);//(xftfont->ascent+xftfont->descent); */
     button->y = xftfont->ascent;
     button->label_len = label_len;
