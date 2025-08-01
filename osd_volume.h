@@ -38,11 +38,13 @@ char *numeric_str;
 char *volume_str = "VOLUME";
 char *muted_str = "MUTED";
 
-void draw_vol(Display *, XftDraw *, XftColor *, XftFont *, size_t );
-void draw_spec(Display *, XftDraw *, XftColor *, XftFont *, XftGlyphFontSpec *, size_t );
+void redraw(Display*,XftDraw*,Window*, uint32_t,XftColor*,XftFont*,XftGlyphFontSpec*,size_t);
+void draw_vol(Display *, XftDraw *,Window*, uint32_t,  XftColor *, XftFont *, size_t );
+void draw_spec(Display *, XftDraw *,Window*,  XftColor *, XftFont *, XftGlyphFontSpec *, size_t );
 XftGlyphFontSpec *create_spec(Display*,XftFont*,uint32_t,uint32_t,size_t);
 XftGlyphFontSpec *spec;
 
+float volume;
 bool timeup=false;
 int padding = 5;
 double duration = 5.0;
@@ -50,17 +52,25 @@ time_t start_time, curr_time;
 
 char *font_pattern = "Deja Vu Sans Mono:pixelsize=20";
 
-void draw_vol(Display *display, XftDraw *draw, XftColor *color, XftFont *font, size_t sz)
+void redraw(Display *display, XftDraw *draw, Window *window, uint32_t win_width, XftColor *color, XftFont *xftfont, XftGlyphFontSpec *spec, size_t sz)
 {
+    volume = getvolume();
+    draw_vol(display, draw, window, win_width, color, xftfont, SZ);
+    draw_spec(display, draw, window, color, xftfont, spec, SZ);
+}
+
+void draw_vol(Display *display, XftDraw *draw, Window *window, uint32_t win_width,  XftColor *color, XftFont *font, size_t sz)
+{
+    XClearArea(display,*window,win_width/2,0,0,font->ascent+padding,false);
     if(is_muted()){
         XftDrawStringUtf8(draw,color,font,(font->max_advance_width*15)+padding,font->ascent,(FcChar8*)muted_str,5);  
     }else{
-        uint32_t volume = (uint32_t)(getvolume()*100);
+        uint32_t vol = (uint32_t)(getvolume()*100);
         char volbuffer[3] = {' ',' ',' '};
         for(int i=2; i>=0; --i){
-            volbuffer[i] = (volume%10)+'0';
-            if(volume<10) break;
-            volume /= 10;
+            volbuffer[i] = (vol%10)+'0';
+            if(vol<10) break;
+            vol /= 10;
         }
         
         XftDrawStringUtf8(draw,color,font,(font->max_advance_width*17)+padding,font->ascent,(FcChar8*)volbuffer,3);  
@@ -68,9 +78,9 @@ void draw_vol(Display *display, XftDraw *draw, XftColor *color, XftFont *font, s
     }
 }
 
-void draw_spec(Display *display, XftDraw *draw, XftColor *color, XftFont *xftfont, XftGlyphFontSpec *spec, size_t sz)
+void draw_spec(Display *display, XftDraw *draw, Window *window, XftColor *color, XftFont *font, XftGlyphFontSpec *spec, size_t sz)
 {
-    float volume = getvolume();
+    XClearArea(display,*window,0,font->ascent+font->descent+(padding),0,0,false);
     uint8_t nblock = (volume*100)/5;
 
     XftDrawGlyphFontSpec(draw,color,spec,nblock);
@@ -143,17 +153,12 @@ void osd_volume(char operation)
     time(&start_time);
     XEvent event;
     int mute_status = is_muted();
-    float volume;
     double difference;
     while(!timeup){
         XNextEvent(display,&event);
         switch(event.type){
             case Expose:
-                XClearArea(display,window,win_width/2,0,0,xftfont->ascent+padding,false);
-                XClearArea(display,window,0,xftfont->ascent+xftfont->descent+(padding),0,0,false);
-                volume = getvolume();
-                draw_vol(display, draw, &color, xftfont, SZ);
-                draw_spec(display, draw, &color, xftfont, spec, SZ);
+                redraw(display, draw, &window, win_width, &color, xftfont, spec, SZ);
                 break;
             case VisibilityNotify:
                 XRaiseWindow(display,window);
@@ -267,12 +272,6 @@ void change_volume(char op)
             mixer_set_vol(m,vol);
             break;
     }
-    /* float unit = 0.01f; */
-    /* if(op=='-'||op=='d') unit = -(unit); */
-
-    /* vol.left = m->dev->vol.left + unit; */
-    /* vol.right = m->dev->vol.right + unit; */
-    /* mixer_set_vol(m,vol); */
 
     mixer_close(m);
 }
