@@ -29,6 +29,7 @@ void osd_volume(char);
 #define GREEN "#00FF00"
 #define OSD_VOLUME_LOCK "/tmp/osd_volume.lck"
 #define PX_BETWEEN 1  
+#define MIXER_MUTED_FLAG 0
 #define SZ 20
 
 typedef struct {
@@ -54,29 +55,42 @@ typedef struct {
     uint32_t line2_h;
 } XWindow;
 
+typedef struct {
+    time_t start_time; 
+    time_t curr_time;
+    double difference;
+    double duration; // = 5.0;
+} TimerState;
+
+typedef struct {
+    int mute_flag;
+    float volumef;
+    int volumei;
+} MixerState;
+
 void init_window(XWindow*);
 int is_muted(void);
 void sig_handler(int);
-float getvolume(void);
+float get_volume(void);
 void change_volume(char);
 int create_volume_lock(void);
 XftGlyphFontSpec *create_glyph(XWindow*,uint32_t);
-void draw(XWindow*);
-void draw_vol(XWindow*);
-void draw_glyph(XWindow*);
-void draw_label(XWindow*,char*);
+void draw(XWindow*,MixerState*);
+void draw_vol(XWindow*,MixerState*);
+void draw_glyph(XWindow*,MixerState*);
+void draw_label(XWindow*);
+bool check_timer(XWindow*,TimerState*,MixerState*,XEvent*);
 
-char *numeric_str;
-char *volume_str = "VOLUME";
-char *muted_str = "MUTED";
-XftGlyphFontSpec *glyph;
+void init_timer(TimerState *ts)
+{
+    time(&ts->start_time);
+    ts->duration = 5.0;
+}
 
-float volume;
-bool timeup=false;
-double duration = 5.0;
-time_t start_time, curr_time;
-
-const char *font_name2 = "Deja Vu Sans Mono:pixelsize=20";
+void init_mixer(MixerState *ms)
+{
+    ms->mute_flag = is_muted();
+}
 
 void osd_volume(char operation)
 {
@@ -86,54 +100,61 @@ void osd_volume(char operation)
     if(fd==-1) return;
     close(fd);
 
-    signal(SIGUSR1,sig_handler);
+    bool running  = true;
+    XEvent event  = {0};
+    XWindow xwin  = {0};
+    TimerState ts = {0};
+    MixerState ms = {0};
 
-    XWindow xwin = {0};
     init_window(&xwin);
+    init_timer(&ts);
+    init_mixer(&ms);
 
-    draw_label(&xwin, "VOLUME");
-
-    time(&start_time);
-    XEvent event;
-    int mute_status = is_muted();
-    double difference;
-    while(!timeup){
+    while(running){
         XNextEvent(xwin.display,&event);
         switch(event.type){
             case Expose:
-                draw(&xwin);
+                draw(&xwin,&ms);
                 break;
             case VisibilityNotify:
                 XRaiseWindow(xwin.display,xwin.win);
                 break;
         }
-        
-        usleep(33333);
-        time(&curr_time);
-        difference = difftime(curr_time,start_time);
-
-        XEvent temp;
-        if(volume != getvolume()||mute_status != is_muted()){
-            mute_status = is_muted();
-            temp.type=Expose;
-            raise(SIGUSR1);
-        }
-        XSendEvent(xwin.display,xwin.win,0,0,&temp);
-
-        if(difference >= duration) timeup=true;
+        running=check_timer(&xwin,&ts,&ms,&event);
     }
     remove(OSD_VOLUME_LOCK);
 }
 
-void draw(XWindow *xwin)
+bool check_timer(XWindow *xwin, TimerState *ts, MixerState *ms, XEvent *event)
 {
-    volume = getvolume();
-    draw_vol(xwin);
-    draw_glyph(xwin);
+    usleep(33333);
+
+    float curr_volumef = get_volume();
+    int curr_mute_flag = is_muted();
+
+    time(&ts->curr_time);
+    ts->difference = difftime(ts->curr_time,ts->start_time);
+
+    if(ms->volumef != curr_volumef||ms->mute_flag != curr_mute_flag){
+        ms->mute_flag = curr_mute_flag;
+        event->type=Expose;
+        time(&ts->start_time);
+    }
+    XSendEvent(xwin->display,xwin->win,0,0,event);
+
+    return( ts->difference >= ts->duration?false:true );
 }
 
-void draw_vol(XWindow *xwin)
+void draw(XWindow *xwin, MixerState *ms)
 {
+    ms->volumef = get_volume();
+    draw_vol(xwin,ms);
+    draw_glyph(xwin,ms);
+}
+
+void draw_vol(XWindow *xwin, MixerState *ms)
+{
+    static const char *muted_str = "MUTED";
     XClearArea(xwin->display,
                xwin->win,
                xwin->width/2,
@@ -142,15 +163,17 @@ void draw_vol(XWindow *xwin)
                xwin->line1_h,
                false);
     if(is_muted()){
+        size_t length = strlen(muted_str);
         XftDrawStringUtf8(xwin->dc,
                           &xwin->fgcolor,
                           xwin->font,
                           (xwin->font->max_advance_width*15)+xwin->margin,
                           xwin->font->ascent,
                           (FcChar8*)muted_str,
-                          5);  
+                          length);  
     }else{
-        uint32_t vol = (uint32_t)(getvolume()*100);
+        ms->volumei = (uint32_t)(ms->volumef*100);
+        uint32_t vol = ms->volumei;
         char volbuffer[3] = {' ',' ',' '};
         for(int i=2; i>=0; --i){
             volbuffer[i] = (vol%10)+'0';
@@ -169,7 +192,7 @@ void draw_vol(XWindow *xwin)
     }
 }
 
-void draw_glyph(XWindow *xwin)
+void draw_glyph(XWindow *xwin, MixerState *ms)
 {
     XClearArea(xwin->display,
                xwin->win,
@@ -178,7 +201,7 @@ void draw_glyph(XWindow *xwin)
                0,
                0,
                false);
-    uint8_t nblock = (volume*100)/5;
+    uint8_t nblock = (ms->volumef*100)/5;
 
     XftDrawGlyphFontSpec(xwin->dc,
                          &xwin->fgcolor,
@@ -188,10 +211,11 @@ void draw_glyph(XWindow *xwin)
 
 void init_window(XWindow *xwin)
 {
-    uint8_t border_px=2;
     XftColor color;
+    uint8_t border_px=2;
     uint32_t screen_width=0;
     uint32_t screen_height=0;
+    char *font_name = "Deja Vu Sans Mono:pixelsize=20";
 
     xwin->display  = XOpenDisplay(NULL);
     xwin->screen   = DefaultScreen(xwin->display);
@@ -211,7 +235,7 @@ void init_window(XWindow *xwin)
                 SubstructureNotifyMask;
     screen_width   = XDisplayWidth(xwin->display,xwin->screen);
     screen_height  = XDisplayHeight(xwin->display,xwin->screen);
-    xwin->font     = font_setup(xwin->display,xwin->screen,font_name2);
+    xwin->font     = font_setup(xwin->display,xwin->screen,font_name);
     XftColorAllocName(xwin->display,xwin->visual,xwin->cmap,GREEN,&color);
     xwin->fgcolor  = color;
     xwin->margin   = 5;
@@ -248,10 +272,13 @@ void init_window(XWindow *xwin)
 
     XMapWindow(xwin->display,xwin->win);
     XSync(xwin->display,false);
+
+    draw_label(xwin);
 }
 
-void draw_label(XWindow *xwin, char *label)
+void draw_label(XWindow *xwin)
 {
+    char *label = "VOLUME";
     size_t length = strlen(label);
     XftDrawStringUtf8(xwin->dc,
                       &xwin->fgcolor,
@@ -264,7 +291,7 @@ void draw_label(XWindow *xwin, char *label)
 
 int is_muted(void)
 {
-    int ismuted = 0;
+    int ismuted = MIXER_MUTED_FLAG;
     struct mixer *m;
     char *mix_name, *dev_name;
 
@@ -278,7 +305,7 @@ int is_muted(void)
 
     ismuted = MIX_ISMUTE(m, m->dev->devno);
     mixer_close(m);
-    /* printf("%d\n",muted); */
+
     return(ismuted);
 }
 
@@ -300,7 +327,7 @@ XftGlyphFontSpec *create_glyph(XWindow *xwin, uint32_t glyph)
     return(spec);
 }
 
-float getvolume(void)
+float get_volume(void)
 {
     struct mixer *m;
     char *mix_name, *dev_name;
@@ -358,15 +385,6 @@ int create_volume_lock(void)
     int fd;
     fd=open(OSD_VOLUME_LOCK, O_WRONLY|O_CREAT|O_EXCL, S_IRWXU);
     return(fd);
-}
-
-void sig_handler(int sig)
-{
-    switch(sig){
-        case SIGUSR1:
-            time(&start_time);
-            break;
-    }
 }
 
 #endif // OSD_VOLUME_IMPLEMENTATION
