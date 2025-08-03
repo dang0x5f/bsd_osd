@@ -63,6 +63,7 @@ typedef struct {
 } TimerState;
 
 typedef struct {
+    int prev_nblock;
     int mute_flag;
     float volumef;
     int volumei;
@@ -90,6 +91,7 @@ void init_timer(TimerState *ts)
 void init_mixer(MixerState *ms)
 {
     ms->mute_flag = is_muted();
+    ms->prev_nblock = 0;
 }
 
 void osd_volume(char operation)
@@ -162,7 +164,7 @@ void draw_vol(XWindow *xwin, MixerState *ms)
                0,
                xwin->line1_h,
                false);
-    if(is_muted()){
+    if(ms->mute_flag){
         size_t length = strlen(muted_str);
         XftDrawStringUtf8(xwin->dc,
                           &xwin->fgcolor,
@@ -194,6 +196,12 @@ void draw_vol(XWindow *xwin, MixerState *ms)
 
 void draw_glyph(XWindow *xwin, MixerState *ms)
 {
+    uint8_t nblock = (ms->volumef*100)/5;
+    if(nblock == ms->prev_nblock){
+        ms->prev_nblock = nblock;
+        return;
+    }
+
     XClearArea(xwin->display,
                xwin->win,
                0,
@@ -201,12 +209,12 @@ void draw_glyph(XWindow *xwin, MixerState *ms)
                0,
                0,
                false);
-    uint8_t nblock = (ms->volumef*100)/5;
 
     XftDrawGlyphFontSpec(xwin->dc,
                          &xwin->fgcolor,
                          xwin->glyph,
                          nblock);
+    ms->prev_nblock = nblock;
 }
 
 void init_window(XWindow *xwin)
@@ -291,7 +299,7 @@ void draw_label(XWindow *xwin)
 
 int is_muted(void)
 {
-    int ismuted = MIXER_MUTED_FLAG;
+    int ismuted = {0};
     struct mixer *m;
     char *mix_name, *dev_name;
 
