@@ -1,5 +1,5 @@
-#ifndef OSD_OUTMIXER_H
-#define OSD_OUTMIXER_H
+#ifndef OSD_OUTDEVICE_H
+#define OSD_OUTDEVICE_H
 
 #include <sys/sysctl.h>
 #include <mixer.h>
@@ -7,7 +7,7 @@
 #define OSD_BTTN_IMPLEMENTATION
 #include "osd_button.h"
 
-int osd_outmixer(void);         // Driver function
+int osd_outdevice(void);         // Driver function
 void *create_mixerlist(void);   // Retrieve list of mixer devices
 
 typedef osd_button Button;
@@ -43,7 +43,7 @@ typedef struct  {
 
 #endif
 
-#ifdef OSD_OUTMIXER_IMPLEMENTATION
+#ifdef OSD_OUTDEVICE_IMPLEMENTATION
 
 #define BLACK "#000000"
 #define WHITE "#FFFFFF"
@@ -72,7 +72,7 @@ const uint32_t margin = 3;
 const char *font_name = "Deja Vu Sans Mono:pixelsize=16";
 const char *header_text = "Select Output Device";
 
-int osd_outmixer(void)
+int osd_outdevice(void)
 {
     XEvent ev;
     Button_List button_list;

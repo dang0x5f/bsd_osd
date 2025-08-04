@@ -71,7 +71,6 @@ typedef struct {
 
 void init_window(XWindow*);
 int is_muted(void);
-void sig_handler(int);
 float get_volume(void);
 void change_volume(char);
 int create_volume_lock(void);

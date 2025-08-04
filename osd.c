@@ -1,9 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdbool.h>
 #include <fcntl.h>
-#include <signal.h>
 #include <unistd.h>
 #include <X11/Xlib.h>
 #include <X11/Xft/Xft.h>
@@ -17,8 +15,8 @@
 #define OSD_VOLUME_IMPLEMENTATION
 #include "osd_volume.h"
 
-#define OSD_OUTMIXER_IMPLEMENTATION
-#include "osd_outmixer.h"
+#define OSD_OUTDEVICE_IMPLEMENTATION
+#include "osd_outdevice.h"
 
 void usage(char *progname)
 {
@@ -39,7 +37,7 @@ int main(int argc, char **argv)
                 break;
             case 'm':
                 if(optarg[0]=='o')
-                    osd_outmixer();
+                    osd_outdevice();
                 break;
             case 'h':
             case '?':
