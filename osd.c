@@ -9,6 +9,9 @@
 #include <X11/Xresource.h>
 #include <sys/sysctl.h>
 
+#include <errno.h>
+#include <X11/Xatom.h>
+
 #define OSD_COMMON_IMPLEMENTATION
 #include "osd_common.h"
 
@@ -17,6 +20,9 @@
 
 #define OSD_OUTDEVICE_IMPLEMENTATION
 #include "osd_outdevice.h"
+
+#define OSD_PROGLIST_IMPL
+#include "osd_proglist.h"
 
 void usage(char *progname)
 {
@@ -30,7 +36,7 @@ int main(int argc, char **argv)
     if(argc < 2) usage(argv[0]);
 
     int opt;
-    while((opt=getopt(argc,argv,"m:v:h?")) != -1){
+    while((opt=getopt(argc,argv,"lm:v:h?")) != -1){
         switch(opt){
             case 'v':
                 osd_volume(optarg[0]);
@@ -38,6 +44,9 @@ int main(int argc, char **argv)
             case 'm':
                 if(optarg[0]=='o')
                     osd_outdevice();
+                break;
+            case 'l':
+                osd_proglist();
                 break;
             case 'h':
             case '?':
