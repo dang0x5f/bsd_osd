@@ -9,8 +9,120 @@ void osd_proglist(void);
 
 void osd_proglist(void)
 {
+    Display *display = XOpenDisplay(NULL); 
+    int screen = DefaultScreen(display);
     
-    printf("osd_proglist()\n");
+    uint32_t nchildren;
+    Window root_ret, parent_ret, *children_ret;
+    Window root = DefaultRootWindow(display);
+
+    XQueryTree(display,
+               root,
+               &root_ret,
+               &parent_ret,
+               &children_ret,
+               &nchildren);
+
+    XTextProperty prop;
+
+    Atom actual_type;
+    int32_t actual_format;
+    uint64_t nitems, bytes_after;
+    unsigned char *prop_ret = NULL; 
+
+    Atom wm_state_atom = XInternAtom(display,"WM_STATE",false);
+
+    for(size_t i=0; i<nchildren; ++i){
+
+        XWindowAttributes attr;
+        XGetWindowAttributes(display,children_ret[i],&attr);
+        if(attr.map_state == IsViewable){
+            XGetWMName(display,children_ret[i],&prop);
+            printf("(%d) %s\n", children_ret[i],prop.value);
+            continue;
+        }
+
+        Status status = XGetWindowProperty(display,
+                                           children_ret[i],
+                                           wm_state_atom,
+                                           0, (~0L),
+                                           false,
+                                           AnyPropertyType,
+                                           &actual_type, &actual_format,
+                                           &nitems, &bytes_after,
+                                           &prop_ret);
+
+        if(status == Success && prop_ret != NULL){
+            int64_t *state_data = (int64_t*)prop_ret;
+            int64_t state = state_data[0];
+
+            if(state != WithdrawnState){
+                XGetWMName(display,children_ret[i],&prop);
+                printf("(%d) %s\n", children_ret[i],prop.value);
+                continue;
+            }
+        }
+
+    }
+               
+}
+
+void osd_proglist2(void)
+{
+    Display *display = XOpenDisplay(NULL); 
+    int screen = DefaultScreen(display);
+
+    XSetWindowAttributes attr = {
+        .background_pixel=0xffff00,
+        .border_pixel=0x007700,
+        .event_mask = ExposureMask|
+              VisibilityChangeMask|
+            SubstructureNotifyMask,
+    };
+    int mask=CWBorderPixel|
+               CWBackPixel|
+               CWEventMask;
+    
+    
+    char *prog_name = "prog_list";
+    XTextProperty prop;
+    XTextProperty prop2;
+
+    Window win = XCreateWindow(display, 
+                               DefaultRootWindow(display),
+                               0,0,
+                               400,400,
+                               2,
+                               DefaultDepth(display,screen),
+                               CopyFromParent,
+                               DefaultVisual(display,screen),
+                               mask,
+                               &attr);
+                               
+
+
+    XStringListToTextProperty(&prog_name,1,&prop);
+    XSetWMName(display,win,&prop);
+    
+    XGetWMName(display,win,&prop2);
+
+    char **name;
+    int cnt = 1;
+    XTextPropertyToStringList(&prop2,&name,&cnt);
+    printf("%s\n", *name);
+
+
+    /* Atom atom = XInternAtom(display, "WM_DELETE_WINDOW", false); */
+
+    /* if(atom == None){ */
+    /*     fprintf(stderr,"Failed to intern WM_DELETE_WINDOW atom\n"); */
+    /* } else { */
+    /*     printf("WM_DELETE_WINDOW Atom: %lu\n", (uint32_t)atom); */
+    /*     printf("String: %s\n", XGetAtomName(display, atom)); */
+    /* } */
+
+
+    /* printf("osd_proglist()\n"); */
 
 }
 
