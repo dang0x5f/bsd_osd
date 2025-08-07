@@ -36,7 +36,7 @@ void osd_proglist(void)
 
         XWindowAttributes attr;
         XGetWindowAttributes(display,children_ret[i],&attr);
-        if(attr.map_state == IsViewable){
+        if(!attr.override_redirect && attr.map_state == IsViewable){
             XGetWMName(display,children_ret[i],&prop);
             printf("(%d) %s\n", children_ret[i],prop.value);
             continue;
@@ -45,7 +45,7 @@ void osd_proglist(void)
         Status status = XGetWindowProperty(display,
                                            children_ret[i],
                                            wm_state_atom,
-                                           0, (~0L),
+                                           0, sizeof(int64_t),
                                            false,
                                            AnyPropertyType,
                                            &actual_type, &actual_format,
