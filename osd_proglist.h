@@ -7,6 +7,7 @@ void osd_proglist(void);
 
 #ifdef OSD_PROGLIST_IMPL
 
+
 typedef struct {
     Window winid;
     Window root;
@@ -19,12 +20,32 @@ typedef struct {
     size_t width,height;
 } XWindow_main;
 
-typedef struct {
-    Window winid;
-    char *name;
-    size_t namelen;
-    uint8_t workspace;
-} XWindow_app;
+/* typedef struct { */
+/*     Button *button; */
+/*     char *name; */
+/*     size_t namelen; */
+/*     uint8_t workspace; */
+/* } XWindow_app; */
+
+/* typedef struct { */
+/*     bool todo; */
+/* } NodeData; */
+
+/* typedef struct appnode_t{ */
+/*     Window win_id; */
+/*     /1* uint8_t mixer_id; *1/ */
+/*     Button *btn; */
+/*     struct node_t *next; */
+/*     struct node_t *prev; */
+/* } App_Node; */
+
+/* typedef struct { */
+/*     App_Node *first; */
+/*     App_Node *end; */
+/*     /1* uint8_t default_mixer; *1/ */
+/*     App_Node *selected; */
+/*     size_t length; */
+/* } App_List; */
 
 /* create_button(Display *display, Window *parent, Window *child, int depth, */ 
 /*               Visual *visual, XContext context, int x, int y, int width, int height, */
@@ -36,6 +57,7 @@ typedef struct {
 void osd_proglist(void)
 {
     XWindow_main xwmain = {0};
+    /* Button_List list = {0}; */
 
     xwmain.display = XOpenDisplay(NULL); 
     xwmain.screen = DefaultScreen(xwmain.display);
@@ -74,8 +96,9 @@ void osd_proglist(void)
             XGetClassHint(xwmain.display,children_ret[i],&class_hint);
             /* printf("res_name: %s\n",class_hint.res_name); */
             printf("res_class: %s\n",class_hint.res_class);
-            /* XGetWMName(display,children_ret[i],&prop); */
+            /* XGetWMName(xwmain.display,children_ret[i],&prop); */
             /* printf("(%d) %s\n", children_ret[i],prop.value); */
+            /* list.length += 1; */
             xwmain.height += 1;
             if(strlen(class_hint.res_class) > xwmain.width)
                 xwmain.width = strlen(class_hint.res_class);
@@ -100,8 +123,9 @@ void osd_proglist(void)
                 XGetClassHint(xwmain.display,children_ret[i],&class_hint);
                 /* printf("res_name: %s\n",class_hint.res_name); */
                 printf("res_class: %s\n",class_hint.res_class);
-                /* XGetWMName(display,children_ret[i],&prop); */
+                /* XGetWMName(xwmain.display,children_ret[i],&prop); */
                 /* printf("(%d) %s\n", children_ret[i],prop.value); */
+                /* list.length += 1; */
                 xwmain.height += 1;
                 if(strlen(class_hint.res_class) > xwmain.width)
                     xwmain.width = strlen(class_hint.res_class);

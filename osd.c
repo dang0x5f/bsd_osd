@@ -3,14 +3,17 @@
 #include <string.h>
 #include <fcntl.h>
 #include <unistd.h>
+
+#include <err.h>
+#include <errno.h>
+
 #include <X11/Xlib.h>
 #include <X11/Xft/Xft.h>
 #include <X11/keysym.h>
 #include <X11/Xresource.h>
-#include <sys/sysctl.h>
-
-#include <errno.h>
 #include <X11/Xatom.h>
+
+#include <sys/sysctl.h>
 
 #define OSD_COMMON_IMPLEMENTATION
 #include "osd_common.h"

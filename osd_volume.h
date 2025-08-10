@@ -13,7 +13,6 @@
 /* VOLUME            80 */
 /* ████████████████____ */
 
-#include <err.h>
 #include <time.h>
 #include <mixer.h>
 #include <fontconfig/fontconfig.h>
