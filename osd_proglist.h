@@ -7,17 +7,37 @@ void osd_proglist(void);
 
 #ifdef OSD_PROGLIST_IMPL
 
+typedef struct {
+    Window winid;
+    Window root;
+    Display *display;
+    int screen;
+    XftFont *font;
+} XWindow_main;
+
+typedef struct {
+    Window winid;
+    char *name;
+    size_t namelen;
+    uint8_t workspace;
+} XWindow_app;
+
 void osd_proglist(void)
 {
-    Display *display = XOpenDisplay(NULL); 
-    int screen = DefaultScreen(display);
+    XWindow_main xwmain;
+
+    xwmain.display = XOpenDisplay(NULL); 
+    xwmain.screen = DefaultScreen(xwmain.display);
+    xwmain.root = DefaultRootWindow(xwmain.display);
+    xwmain.font = font_setup(xwmain.display,
+                             xwmain.screen,
+                             "Deja Vu Sans Mono:pixelsize=16");
     
     uint32_t nchildren;
     Window root_ret, parent_ret, *children_ret;
-    Window root = DefaultRootWindow(display);
 
-    XQueryTree(display,
-               root,
+    XQueryTree(xwmain.display,
+               xwmain.root,
                &root_ret,
                &parent_ret,
                &children_ret,
@@ -30,19 +50,23 @@ void osd_proglist(void)
     uint64_t nitems, bytes_after;
     unsigned char *prop_ret = NULL; 
 
-    Atom wm_state_atom = XInternAtom(display,"WM_STATE",false);
+    XClassHint class_hint;
+    Atom wm_state_atom = XInternAtom(xwmain.display, "WM_STATE",false);
 
     for(size_t i=0; i<nchildren; ++i){
 
         XWindowAttributes attr;
-        XGetWindowAttributes(display,children_ret[i],&attr);
+        XGetWindowAttributes(xwmain.display,children_ret[i],&attr);
         if(!attr.override_redirect && attr.map_state == IsViewable){
-            XGetWMName(display,children_ret[i],&prop);
-            printf("(%d) %s\n", children_ret[i],prop.value);
+            XGetClassHint(xwmain.display,children_ret[i],&class_hint);
+            /* printf("res_name: %s\n",class_hint.res_name); */
+            printf("res_class: %s\n",class_hint.res_class);
+            /* XGetWMName(display,children_ret[i],&prop); */
+            /* printf("(%d) %s\n", children_ret[i],prop.value); */
             continue;
         }
 
-        Status status = XGetWindowProperty(display,
+        Status status = XGetWindowProperty(xwmain.display,
                                            children_ret[i],
                                            wm_state_atom,
                                            0, sizeof(int64_t),
@@ -57,8 +81,11 @@ void osd_proglist(void)
             int64_t state = state_data[0];
 
             if(state != WithdrawnState){
-                XGetWMName(display,children_ret[i],&prop);
-                printf("(%d) %s\n", children_ret[i],prop.value);
+                XGetClassHint(xwmain.display,children_ret[i],&class_hint);
+                /* printf("res_name: %s\n",class_hint.res_name); */
+                printf("res_class: %s\n",class_hint.res_class);
+                /* XGetWMName(display,children_ret[i],&prop); */
+                /* printf("(%d) %s\n", children_ret[i],prop.value); */
                 continue;
             }
         }
