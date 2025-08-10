@@ -13,6 +13,10 @@ typedef struct {
     Display *display;
     int screen;
     XftFont *font;
+    int depth;
+    Visual *visual;
+    Colormap colormap;
+    size_t width,height;
 } XWindow_main;
 
 typedef struct {
@@ -22,16 +26,25 @@ typedef struct {
     uint8_t workspace;
 } XWindow_app;
 
+/* create_button(Display *display, Window *parent, Window *child, int depth, */ 
+/*               Visual *visual, XContext context, int x, int y, int width, int height, */
+/*               Colormap *colormap, int border_px, int border, int background, char *foreground, */ 
+/*               char *label, size_t label_len, Callback cb_func, XftFont *xftfont) */
+
+// #ff4040
+
 void osd_proglist(void)
 {
-    XWindow_main xwmain;
+    XWindow_main xwmain = {0};
 
     xwmain.display = XOpenDisplay(NULL); 
     xwmain.screen = DefaultScreen(xwmain.display);
     xwmain.root = DefaultRootWindow(xwmain.display);
-    xwmain.font = font_setup(xwmain.display,
-                             xwmain.screen,
+    xwmain.font = font_setup(xwmain.display, xwmain.screen,
                              "Deja Vu Sans Mono:pixelsize=16");
+    xwmain.depth = DefaultDepth(xwmain.display, xwmain.screen);
+    xwmain.visual = DefaultVisual(xwmain.display, xwmain.screen);
+    xwmain.colormap = DefaultColormap(xwmain.display, xwmain.screen);
     
     uint32_t nchildren;
     Window root_ret, parent_ret, *children_ret;
@@ -63,6 +76,9 @@ void osd_proglist(void)
             printf("res_class: %s\n",class_hint.res_class);
             /* XGetWMName(display,children_ret[i],&prop); */
             /* printf("(%d) %s\n", children_ret[i],prop.value); */
+            xwmain.height += 1;
+            if(strlen(class_hint.res_class) > xwmain.width)
+                xwmain.width = strlen(class_hint.res_class);
             continue;
         }
 
@@ -86,10 +102,54 @@ void osd_proglist(void)
                 printf("res_class: %s\n",class_hint.res_class);
                 /* XGetWMName(display,children_ret[i],&prop); */
                 /* printf("(%d) %s\n", children_ret[i],prop.value); */
+                xwmain.height += 1;
+                if(strlen(class_hint.res_class) > xwmain.width)
+                    xwmain.width = strlen(class_hint.res_class);
                 continue;
             }
         }
 
+    }
+
+
+    int x=0, y=0;
+    int border_width = 2;
+    int valuemask=CWEventMask|CWBackPixel|CWOverrideRedirect;
+    XSetWindowAttributes attributes = {
+        .override_redirect = true,
+        .background_pixel = 0xfffdd0,
+        .event_mask = ExposureMask|
+                      SubstructureNotifyMask,
+    };
+
+    xwmain.width = ((xwmain.width)*(xwmain.font->max_advance_width))
+                 + ((border_width*2));
+    xwmain.height = ((xwmain.height)*(xwmain.font->ascent+xwmain.font->descent))
+                  + ((xwmain.height)*(border_width*2));
+    xwmain.winid = XCreateWindow(xwmain.display, 
+                                 xwmain.root, 
+                                 x, y, 
+                                 xwmain.width, 
+                                 xwmain.height, 
+                                 border_width, 
+                                 xwmain.depth, 
+                                 CopyFromParent, 
+                                 xwmain.visual, 
+                                 valuemask, 
+                                 &attributes);
+
+    XMapWindow(xwmain.display,xwmain.winid);
+    XSync(xwmain.display,false);
+
+    XEvent event;
+    while(1) {
+        XNextEvent(xwmain.display,&event);
+        switch(event.type){
+            case Expose:
+                break;
+            default:
+                break;
+        }
     }
                
 }
