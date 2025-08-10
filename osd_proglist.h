@@ -18,14 +18,15 @@ typedef struct {
     Visual *visual;
     Colormap colormap;
     size_t width,height;
+    size_t screen_width,screen_height;
 } XWindow_main;
 
-/* typedef struct { */
-/*     Button *button; */
-/*     char *name; */
-/*     size_t namelen; */
-/*     uint8_t workspace; */
-/* } XWindow_app; */
+typedef struct {
+    Button *button;
+    char *name;
+    size_t namelen;
+    uint8_t workspace;
+} XWindow_app;
 
 /* typedef struct { */
 /*     bool todo; */
@@ -56,8 +57,10 @@ typedef struct {
 
 void osd_proglist(void)
 {
+    XWindowChanges changes;
+
     XWindow_main xwmain = {0};
-    /* Button_List list = {0}; */
+    LinkList list = {0};
 
     xwmain.display = XOpenDisplay(NULL); 
     xwmain.screen = DefaultScreen(xwmain.display);
@@ -67,10 +70,54 @@ void osd_proglist(void)
     xwmain.depth = DefaultDepth(xwmain.display, xwmain.screen);
     xwmain.visual = DefaultVisual(xwmain.display, xwmain.screen);
     xwmain.colormap = DefaultColormap(xwmain.display, xwmain.screen);
+    xwmain.screen_width = DisplayWidth(xwmain.display,xwmain.screen);
+    xwmain.screen_height = DisplayHeight(xwmain.display,xwmain.screen);
+
+    int x=0, y=0;
+    int border_width = 2;
+    int valuemask=CWEventMask|CWBackPixel|CWOverrideRedirect;
+    XSetWindowAttributes attributes = {
+        .override_redirect = true,
+        .background_pixel = 0xfffdd0,
+        .event_mask = ExposureMask|
+                      KeyPressMask|
+                      SubstructureNotifyMask,
+    };
+    
+    /* xwmain.width = xwmain.screen_width-100; */
+    /* xwmain.height = xwmain.screen_height-100; */
+    xwmain.winid = XCreateWindow(xwmain.display, 
+                                 xwmain.root, 
+                                 x, y, 
+                                 xwmain.screen_width, 
+                                 xwmain.screen_height, 
+                                 border_width, 
+                                 xwmain.depth, 
+                                 InputOutput, 
+                                 xwmain.visual, 
+                                 valuemask, 
+                                 &attributes);
+
+    /* XGrabKeyboard(xwmain.display,xwmain.winid,true,GrabModeAsync,GrabModeAsync,CurrentTime); */
+    /* XEvent event; */
+    /* while(1) { */
+    /*     XNextEvent(xwmain.display,&event); */
+    /*     switch(event.type){ */
+    /*         case Expose: */
+    /*             break; */
+    /*         case KeyPress: */
+    /*             printf("%d\n",event.xkey.keycode); */
+    /*         default: */
+    /*             break; */
+    /*     } */
+    /*     if(event.xkey.keycode == 9||event.xkey.keycode == 53){ */
+    /*         break; */
+    /*     } */
+    /* } */
+    /* XUngrabKeyboard(xwmain.display,CurrentTime); */
     
     uint32_t nchildren;
     Window root_ret, parent_ret, *children_ret;
-
     XQueryTree(xwmain.display,
                xwmain.root,
                &root_ret,
@@ -136,45 +183,18 @@ void osd_proglist(void)
     }
 
 
-    int x=0, y=0;
-    int border_width = 2;
-    int valuemask=CWEventMask|CWBackPixel|CWOverrideRedirect;
-    XSetWindowAttributes attributes = {
-        .override_redirect = true,
-        .background_pixel = 0xfffdd0,
-        .event_mask = ExposureMask|
-                      SubstructureNotifyMask,
-    };
-
     xwmain.width = ((xwmain.width)*(xwmain.font->max_advance_width))
                  + ((border_width*2));
     xwmain.height = ((xwmain.height)*(xwmain.font->ascent+xwmain.font->descent))
                   + ((xwmain.height)*(border_width*2));
-    xwmain.winid = XCreateWindow(xwmain.display, 
-                                 xwmain.root, 
-                                 x, y, 
-                                 xwmain.width, 
-                                 xwmain.height, 
-                                 border_width, 
-                                 xwmain.depth, 
-                                 CopyFromParent, 
-                                 xwmain.visual, 
-                                 valuemask, 
-                                 &attributes);
+    changes.width = xwmain.width;
+    changes.height = xwmain.height;
+    XConfigureWindow(xwmain.display,xwmain.winid,CWWidth|CWHeight,&changes);
 
     XMapWindow(xwmain.display,xwmain.winid);
     XSync(xwmain.display,false);
 
-    XEvent event;
-    while(1) {
-        XNextEvent(xwmain.display,&event);
-        switch(event.type){
-            case Expose:
-                break;
-            default:
-                break;
-        }
-    }
+    while(1) {}
                
 }
 
