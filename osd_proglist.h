@@ -258,7 +258,10 @@ void osd_proglist(void)
 
     }
 
-    
+    size_t max_name_len = xwmain.width;
+    size_t preferred_button_width = (max_name_len+2)*
+                                    xwmain.font->max_advance_width;
+    printf("%lu\n", preferred_button_width); 
     printf("%lu\n", list.length);
 
 
@@ -269,6 +272,28 @@ void osd_proglist(void)
     changes.width = xwmain.width;
     changes.height = xwmain.height;
     XConfigureWindow(xwmain.display,xwmain.winid,CWWidth|CWHeight,&changes);
+
+    /* re-configure */ 
+    ListNode *iter = list.head;
+    while(iter){
+        printf("Button {\n  .width=%d\n  .height=%d\n}\n", 
+                ((XWindow_app*)iter->node_data)->button->width,
+                ((XWindow_app*)iter->node_data)->button->height);
+        
+        if(((XWindow_app*)iter->node_data)->button->width < preferred_button_width){
+
+            ((XWindow_app*)iter->node_data)->button->width = preferred_button_width;
+
+            XWindowChanges width_change;
+            width_change.width = ((XWindow_app*)iter->node_data)->button->width;
+            XConfigureWindow(xwmain.display,
+                            ((XWindow_app*)iter->node_data)->button->win,
+                            CWWidth,
+                            &width_change); 
+        }
+
+        iter = iter->next;
+    }
 
     XMapWindow(xwmain.display,xwmain.winid);
     XSync(xwmain.display,false);
