@@ -62,6 +62,8 @@ void osd_proglist(void)
     XWindow_main xwmain = {0};
     LinkList list = {0};
 
+    XContext context = XUniqueContext();
+
     xwmain.display = XOpenDisplay(NULL); 
     xwmain.screen = DefaultScreen(xwmain.display);
     xwmain.root = DefaultRootWindow(xwmain.display);
@@ -125,16 +127,17 @@ void osd_proglist(void)
                &children_ret,
                &nchildren);
 
-    XTextProperty prop;
-
+    int ypos = 0, lineno = 0;
+    int button_width = 0, button_height = 0;
+    Window app_win;
+    XWindow_app *app_btn = NULL;
+    /* XTextProperty prop; */
     Atom actual_type;
     int32_t actual_format;
     uint64_t nitems, bytes_after;
     unsigned char *prop_ret = NULL; 
-
     XClassHint class_hint;
     Atom wm_state_atom = XInternAtom(xwmain.display, "WM_STATE",false);
-
     for(size_t i=0; i<nchildren; ++i){
 
         XWindowAttributes attr;
@@ -149,6 +152,42 @@ void osd_proglist(void)
             xwmain.height += 1;
             if(strlen(class_hint.res_class) > xwmain.width)
                 xwmain.width = strlen(class_hint.res_class);
+
+            ypos = (xwmain.font->ascent+xwmain.font->descent+
+                   (border_width*2)) *
+                   lineno;
+            button_width = (strlen(class_hint.res_class)+2)*xwmain.font->max_advance_width;
+            button_height = xwmain.font->ascent+xwmain.font->descent;
+
+            app_btn = malloc(sizeof(XWindow_app));
+
+            app_btn->name = malloc(sizeof(char)*strlen(class_hint.res_class));
+            strncpy(app_btn->name,class_hint.res_class,strlen(class_hint.res_class));
+            app_btn->namelen = strlen(class_hint.res_class);
+
+            app_btn->button = create_button(xwmain.display,
+                                           &xwmain.winid,
+                                           &app_win,
+                                           xwmain.depth,
+                                           xwmain.visual,
+                                           context,
+                                           0,              // margin
+                                           ypos,           // y
+                                           button_width,     // width
+                                           button_height,    // height
+                                           &xwmain.colormap,
+                                           2,
+                                           0x333333,
+                                           0xbbbbbb,
+                                           "#000000",      // fg_color
+                                           class_hint.res_class,
+                                           strlen(class_hint.res_class),
+                                           NULL,
+                                           xwmain.font);
+
+            ++lineno;
+            append_to_list(&list,(void*)app_btn);
+
             continue;
         }
 
@@ -176,14 +215,54 @@ void osd_proglist(void)
                 xwmain.height += 1;
                 if(strlen(class_hint.res_class) > xwmain.width)
                     xwmain.width = strlen(class_hint.res_class);
+
+                ypos = (xwmain.font->ascent+xwmain.font->descent+
+                       (border_width*2)) *
+                       lineno;
+                button_width = (strlen(class_hint.res_class)+2)*xwmain.font->max_advance_width;
+                button_height = xwmain.font->ascent+xwmain.font->descent;
+
+                app_btn = malloc(sizeof(XWindow_app));
+
+                app_btn->name = malloc(sizeof(char)*strlen(class_hint.res_class));
+                strncpy(app_btn->name,class_hint.res_class,strlen(class_hint.res_class));
+                app_btn->namelen = strlen(class_hint.res_class);
+
+                app_btn->button = create_button(xwmain.display,
+                                               &xwmain.winid,
+                                               &app_win,
+                                               xwmain.depth,
+                                               xwmain.visual,
+                                               context,
+                                               0,              // margin
+                                               ypos,           // y
+                                               button_width,     // width
+                                               button_height,    // height
+                                               &xwmain.colormap,
+                                               2,
+                                               0x333333,
+                                               0xbbbbbb,
+                                               "#000000",      // fg_color
+                                               class_hint.res_class,
+                                               strlen(class_hint.res_class),
+                                               NULL,
+                                               xwmain.font);
+
+                ++lineno;
+
+                append_to_list(&list,(void*)app_btn);
+
                 continue;
             }
         }
 
     }
 
+    
+    printf("%lu\n", list.length);
 
-    xwmain.width = ((xwmain.width)*(xwmain.font->max_advance_width))
+
+    xwmain.width = ((xwmain.width+2)*(xwmain.font->max_advance_width))
                  + ((border_width*2));
     xwmain.height = ((xwmain.height)*(xwmain.font->ascent+xwmain.font->descent))
                   + ((xwmain.height)*(border_width*2));
@@ -194,9 +273,30 @@ void osd_proglist(void)
     XMapWindow(xwmain.display,xwmain.winid);
     XSync(xwmain.display,false);
 
-    while(1) {}
+    XEvent ev;
+    while(1) {
+        Button *button = NULL;
+        XNextEvent(xwmain.display,&ev);
+        XFindContext(ev.xany.display,ev.xany.window,context,(XPointer*)&button);
+        switch(ev.type){
+            case Expose:
+                if(button)
+                    expose_button(button,&ev);
+                break;
+        }
+    }
                
 }
+
+
+
+
+
+
+
+
+
+
 
 void osd_proglist2(void)
 {
