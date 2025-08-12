@@ -96,11 +96,30 @@ void osd_proglist(void)
     unsigned char *prop_ret = NULL; 
     XClassHint class_hint;
     Atom wm_state_atom = XInternAtom(xwmain.display, "WM_STATE",false);
+    Atom wm_workspace_atom = XInternAtom(xwmain.display, "_NET_WM_DESKTOP",false);
+    /* Atom wm_workspace_atom = XInternAtom(xwmain.display, "_NET_CURRENT_DESKTOP",false); */ // current visible workspace
+Status status;
     for(size_t i=0; i<nchildren; ++i){
 
         XWindowAttributes attr;
         XGetWindowAttributes(xwmain.display,children_ret[i],&attr);
         if(!attr.override_redirect && attr.map_state == IsViewable){
+
+
+            status = XGetWindowProperty(xwmain.display,
+                                        children_ret[i],
+                                        wm_workspace_atom,
+                                        0, sizeof(uint32_t),
+                                        false,
+                                        AnyPropertyType,
+                                        &actual_type, &actual_format,
+                                        &nitems, &bytes_after,
+                                        &prop_ret);
+            if(prop_ret){
+                printf("%d\n", (uint32_t)*prop_ret);
+            }
+
+
             XGetClassHint(xwmain.display,children_ret[i],&class_hint);
             /* printf("res_name: %s\n",class_hint.res_name); */
             printf("res_class: %s\n",class_hint.res_class);
@@ -149,21 +168,36 @@ void osd_proglist(void)
             continue;
         }
 
-        Status status = XGetWindowProperty(xwmain.display,
-                                           children_ret[i],
-                                           wm_state_atom,
-                                           0, sizeof(int64_t),
-                                           false,
-                                           AnyPropertyType,
-                                           &actual_type, &actual_format,
-                                           &nitems, &bytes_after,
-                                           &prop_ret);
+        status = XGetWindowProperty(xwmain.display,
+                                    children_ret[i],
+                                    wm_state_atom,
+                                    0, sizeof(int64_t),
+                                    false,
+                                    AnyPropertyType,
+                                    &actual_type, &actual_format,
+                                    &nitems, &bytes_after,
+                                    &prop_ret);
 
         if(status == Success && prop_ret != NULL){
             int64_t *state_data = (int64_t*)prop_ret;
             int64_t state = state_data[0];
 
             if(state != WithdrawnState){
+
+                status = XGetWindowProperty(xwmain.display,
+                                            children_ret[i],
+                                            wm_workspace_atom,
+                                            0, sizeof(uint32_t),
+                                            false,
+                                            AnyPropertyType,
+                                            &actual_type, &actual_format,
+                                            &nitems, &bytes_after,
+                                            &prop_ret);
+                if(prop_ret){
+                    printf("%d\n", (uint32_t)*prop_ret);
+                }
+
+
                 XGetClassHint(xwmain.display,children_ret[i],&class_hint);
                 /* printf("res_name: %s\n",class_hint.res_name); */
                 printf("res_class: %s\n",class_hint.res_class);
