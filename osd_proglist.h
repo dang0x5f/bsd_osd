@@ -28,32 +28,7 @@ typedef struct {
     uint8_t workspace;
 } XWindow_app;
 
-/* typedef struct { */
-/*     bool todo; */
-/* } NodeData; */
-
-/* typedef struct appnode_t{ */
-/*     Window win_id; */
-/*     /1* uint8_t mixer_id; *1/ */
-/*     Button *btn; */
-/*     struct node_t *next; */
-/*     struct node_t *prev; */
-/* } App_Node; */
-
-/* typedef struct { */
-/*     App_Node *first; */
-/*     App_Node *end; */
-/*     /1* uint8_t default_mixer; *1/ */
-/*     App_Node *selected; */
-/*     size_t length; */
-/* } App_List; */
-
-/* create_button(Display *display, Window *parent, Window *child, int depth, */ 
-/*               Visual *visual, XContext context, int x, int y, int width, int height, */
-/*               Colormap *colormap, int border_px, int border, int background, char *foreground, */ 
-/*               char *label, size_t label_len, Callback cb_func, XftFont *xftfont) */
-
-// #ff4040
+// red : #ff4040
 
 void osd_proglist(void)
 {
@@ -100,24 +75,7 @@ void osd_proglist(void)
                                  valuemask, 
                                  &attributes);
 
-    /* XGrabKeyboard(xwmain.display,xwmain.winid,true,GrabModeAsync,GrabModeAsync,CurrentTime); */
-    /* XEvent event; */
-    /* while(1) { */
-    /*     XNextEvent(xwmain.display,&event); */
-    /*     switch(event.type){ */
-    /*         case Expose: */
-    /*             break; */
-    /*         case KeyPress: */
-    /*             printf("%d\n",event.xkey.keycode); */
-    /*         default: */
-    /*             break; */
-    /*     } */
-    /*     if(event.xkey.keycode == 9||event.xkey.keycode == 53){ */
-    /*         break; */
-    /*     } */
-    /* } */
-    /* XUngrabKeyboard(xwmain.display,CurrentTime); */
-    
+    /* query all toplevel windows and create list + nodes */
     uint32_t nchildren;
     Window root_ret, parent_ret, *children_ret;
     XQueryTree(xwmain.display,
@@ -257,14 +215,15 @@ void osd_proglist(void)
         }
 
     }
+    /* end */
 
     size_t max_name_len = xwmain.width;
     size_t preferred_button_width = (max_name_len+2)*
                                     xwmain.font->max_advance_width;
-    printf("%lu\n", preferred_button_width); 
-    printf("%lu\n", list.length);
+    /* printf("%lu\n", preferred_button_width); */ 
+    /* printf("%lu\n", list.length); */
 
-
+    /* re-configure main width and height */
     xwmain.width = ((xwmain.width+2)*(xwmain.font->max_advance_width))
                  + ((border_width*2));
     xwmain.height = ((xwmain.height)*(xwmain.font->ascent+xwmain.font->descent))
@@ -272,8 +231,9 @@ void osd_proglist(void)
     changes.width = xwmain.width;
     changes.height = xwmain.height;
     XConfigureWindow(xwmain.display,xwmain.winid,CWWidth|CWHeight,&changes);
+    /* end */
 
-    /* re-configure */ 
+    /* re-configure button widths*/ 
     ListNode *iter = list.head;
     while(iter){
         printf("Button {\n  .width=%d\n  .height=%d\n}\n", 
@@ -294,12 +254,33 @@ void osd_proglist(void)
 
         iter = iter->next;
     }
+    /* end */
+
+    
+    /* init selected */
+    // if head exists
+    ListNode *node = list.head;
+    select_button(((XWindow_app*)node->node_data)->button,
+                    xwmain.display,
+                    ((XWindow_app*)node->node_data)->button->win);
+    list.selected = list.head;
+    /* end */
+
 
     XMapWindow(xwmain.display,xwmain.winid);
     XSync(xwmain.display,false);
 
+
     XEvent ev;
-    while(1) {
+    bool running=true;
+
+    XGrabKeyboard(xwmain.display,
+                  xwmain.winid,
+                  true,
+                  GrabModeAsync,
+                  GrabModeAsync,
+                  CurrentTime);
+    while(running) {
         Button *button = NULL;
         XNextEvent(xwmain.display,&ev);
         XFindContext(ev.xany.display,ev.xany.window,context,(XPointer*)&button);
@@ -308,176 +289,16 @@ void osd_proglist(void)
                 if(button)
                     expose_button(button,&ev);
                 break;
+            case KeyPress:
+                printf("%d\n",ev.xkey.keycode);
+                if(ev.xkey.keycode==9||ev.xkey.keycode==53)
+                    running=false;
+                break;
         }
     }
-               
+    XUngrabKeyboard(xwmain.display,
+                    CurrentTime);
+    
 }
-
-
-
-
-
-
-
-
-
-
-
-void osd_proglist2(void)
-{
-    Display *display = XOpenDisplay(NULL); 
-    int screen = DefaultScreen(display);
-
-    XSetWindowAttributes attr = {
-        .background_pixel=0xffff00,
-        .border_pixel=0x007700,
-        .event_mask = ExposureMask|
-              VisibilityChangeMask|
-            SubstructureNotifyMask,
-    };
-    int mask=CWBorderPixel|
-               CWBackPixel|
-               CWEventMask;
-    
-    
-    char *prog_name = "prog_list";
-    XTextProperty prop;
-    XTextProperty prop2;
-
-    Window win = XCreateWindow(display, 
-                               DefaultRootWindow(display),
-                               0,0,
-                               400,400,
-                               2,
-                               DefaultDepth(display,screen),
-                               CopyFromParent,
-                               DefaultVisual(display,screen),
-                               mask,
-                               &attr);
-                               
-
-
-    XStringListToTextProperty(&prog_name,1,&prop);
-    XSetWMName(display,win,&prop);
-    
-    XGetWMName(display,win,&prop2);
-
-    char **name;
-    int cnt = 1;
-    XTextPropertyToStringList(&prop2,&name,&cnt);
-    printf("%s\n", *name);
-
-
-    /* Atom atom = XInternAtom(display, "WM_DELETE_WINDOW", false); */
-
-    /* if(atom == None){ */
-    /*     fprintf(stderr,"Failed to intern WM_DELETE_WINDOW atom\n"); */
-    /* } else { */
-    /*     printf("WM_DELETE_WINDOW Atom: %lu\n", (uint32_t)atom); */
-    /*     printf("String: %s\n", XGetAtomName(display, atom)); */
-    /* } */
-
-
-    /* printf("osd_proglist()\n"); */
-
-}
-
-              // ==== 1 ==== //
-
-/* void enumerate_windows(Display *display, Window window_id, int indent) */
-/* { */
-/*     Window root_ret, parent_ret, *child_ret; */
-/*     char *window_name; */
-/*     uint32_t nchildren; */
-
-/*     for(int i=0; i<indent; ++i) printf("  "); */
-
-/*     XFetchName(display,window_id,&window_name); */
-/*     printf("Window ID: 0x%lx ( %s )\n",window_id, window_name); */
-
-/*     if(XQueryTree(display,window_id,&root_ret,&parent_ret,&child_ret,&nchildren)){ */
-/*         for(uint32_t i=0; i<nchildren; ++i){ */
-/*             enumerate_windows(display,child_ret[i],indent+1); */
-/*         } */
-
-/*         if(child_ret != NULL) XFree(child_ret); */
-/*     } */
-/* } */
-
-/* void osd_proglist(void) */
-/* { */
-/*     Display *dpy; */
-/*     Window root; */
-
-/*     dpy = XOpenDisplay(NULL); */
-/*     root = DefaultRootWindow(dpy); */
-
-/*     enumerate_windows(dpy,root,0); */
-
-/*     XCloseDisplay(dpy); */
-/* } */
-
-              // ==== 2 ==== //
-
-/* Window *winlist (Display *disp, unsigned long *len); */
-/* char *winame (Display *disp, Window win); */ 
- 
-/* void osd_proglist(void) { */
-/*     int i; */
-/*     unsigned long len; */
-/*     Display *disp = XOpenDisplay(NULL); */
-/*     Window *list; */
-/*     char *name; */
- 
-/*     if (!disp) { */
-/*         puts("no display!"); */
-/*     } */
- 
-/*     list = (Window*)winlist(disp,&len); */
- 
-/*     for (i=0;i<(int)len;i++) { */
-/*         name = winame(disp,list[i]); */
-/*         printf("-->%s<--\n",name); */
-/*         free(name); */
-/*     } */
- 
-/*     XFree(list); */
- 
-/*     XCloseDisplay(disp); */
-/* } */
- 
- 
-/* Window *winlist (Display *disp, unsigned long *len) { */
-/*     Atom prop = XInternAtom(disp,"_NET_CLIENT_LIST",False), type; */
-/*     int form; */
-/*     unsigned long remain; */
-/*     unsigned char *list; */
- 
-/*     errno = 0; */
-/*     if (XGetWindowProperty(disp,XDefaultRootWindow(disp),prop,0,1024,False,XA_WINDOW, */
-/*                 &type,&form,len,&remain,&list) != Success) { */
-/*         perror("winlist() -- GetWinProp"); */
-/*         return 0; */
-/*     } */
-     
-/*     return (Window*)list; */
-/* } */
- 
- 
-/* char *winame (Display *disp, Window win) { */
-/*     Atom prop = XInternAtom(disp,"WM_NAME",False), type; */
-/*     int form; */
-/*     unsigned long remain, len; */
-/*     unsigned char *list; */
- 
-/*     errno = 0; */
-/*     if (XGetWindowProperty(disp,win,prop,0,1024,False,XA_STRING, */
-/*                 &type,&form,&len,&remain,&list) != Success) { */
-/*         perror("winlist() -- GetWinProp"); */
-/*         return NULL; */
-/*     } */
- 
-/*     return (char*)list; */
-/* } */
 
 #endif 
