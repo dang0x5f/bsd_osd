@@ -78,7 +78,8 @@ append_to_list(LinkList *list,
         newnode->prev = NULL;
         list->head = newnode;
     }
-
+    
+    list->tail = newnode;
     list->length += 1;
 }
 

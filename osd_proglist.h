@@ -8,6 +8,18 @@ void osd_proglist(void);
 #ifdef OSD_PROGLIST_IMPL
 
 
+//  ...............
+// [ * prog_name   ]
+// [ * prog_nameee ]
+// [+++++++++++++++]
+// [ 1.prog_name   ]
+// [>2.prog_nameee ]
+// [ 3.prognam     ]
+// [ 4.prog_name   ]
+// [ 5.prog_nameee ]
+// [ 6.prog_nameee ]
+//  ```````````````
+
 typedef struct {
     Window winid;
     Window root;
@@ -98,7 +110,7 @@ void osd_proglist(void)
     Atom wm_state_atom = XInternAtom(xwmain.display, "WM_STATE",false);
     Atom wm_workspace_atom = XInternAtom(xwmain.display, "_NET_WM_DESKTOP",false);
     /* Atom wm_workspace_atom = XInternAtom(xwmain.display, "_NET_CURRENT_DESKTOP",false); */ // current visible workspace
-Status status;
+    Status status;
     for(size_t i=0; i<nchildren; ++i){
 
         XWindowAttributes attr;
@@ -249,6 +261,18 @@ Status status;
         }
 
     }
+    ((ListNode*)list.head)->prev = (ListNode*)list.tail;
+    ((ListNode*)list.tail)->next = (ListNode*)list.head;
+
+    printf("--------------------------\n");
+    ListNode *iter01 = list.head;
+    for(size_t i=0; i<list.length; ++i){
+        printf("%lu\n {\n  curr: %p\n  prev: %p\n  next: %p\n }\n\n",
+               i, (void*)iter01, (void*)iter01->prev, (void*)iter01->next);
+
+        iter01 = iter01->next;
+    }
+    printf("--------------------------\n");
     /* end */
 
     size_t max_name_len = xwmain.width;
@@ -269,7 +293,8 @@ Status status;
 
     /* re-configure button widths*/ 
     ListNode *iter = list.head;
-    while(iter){
+    /* while(iter){ */
+    for(size_t i=0; i<list.length; ++i){
         printf("Button {\n  .width=%d\n  .height=%d\n}\n", 
                 ((XWindow_app*)iter->node_data)->button->width,
                 ((XWindow_app*)iter->node_data)->button->height);
@@ -324,6 +349,49 @@ Status status;
                     expose_button(button,&ev);
                 break;
             case KeyPress:
+                
+                bool redraw = false;
+                KeySym keysym = XLookupKeysym(&ev.xkey,0);               
+
+                switch(keysym){
+                    case XK_Down:
+                    case XK_j:
+                        list.selected = ((ListNode*)list.selected)->next;
+                        /* list->current_mixer = list->current_mixer->next; */
+                        redraw=true;
+                        break;
+                    case XK_Up:  
+                    case XK_k:
+                        list.selected = ((ListNode*)list.selected)->prev;
+                        /* list->current_mixer = list->current_mixer->prev; */
+                        redraw=true;
+                        break;
+                    case XK_Return:
+                        /* set_defaultunit(list->current_mixer->mixer_id,list); */
+                        redraw=true;
+                        break;
+                    case XK_q:
+                    case XK_Escape:
+                        running=false;
+                        break;
+                }
+
+                if(redraw){
+                    ListNode *iter02 = list.head;
+                    for(size_t i=0; i<list.length; ++i){
+                        if(iter02 == list.selected)
+                            select_button(((XWindow_app*)iter02->node_data)->button,
+                                          xwmain.display,
+                                          ((XWindow_app*)iter02->node_data)->button->win);
+                        else
+                            unselect_button(((XWindow_app*)iter02->node_data)->button,
+                                            xwmain.display,
+                                            ((XWindow_app*)iter02->node_data)->button->win);
+
+                        iter02 = iter02->next;
+                    }
+                }
+
                 printf("%d\n",ev.xkey.keycode);
                 if(ev.xkey.keycode==9||ev.xkey.keycode==53)
                     running=false;
