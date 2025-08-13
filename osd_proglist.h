@@ -40,7 +40,11 @@ typedef struct {
     uint8_t workspace;
 } XWindow_app;
 
+void applist_init(XWindow_main*,XContext*,LinkList*);
+Status get_atom_prop(XWindow_main*,Window,Atom,unsigned char**,size_t);
+
 // red : #ff4040
+static const int border_width = 2;
 
 void osd_proglist(void)
 {
@@ -63,7 +67,6 @@ void osd_proglist(void)
     xwmain.screen_height = DisplayHeight(xwmain.display,xwmain.screen);
 
     int x=0, y=0;
-    int border_width = 2;
     int valuemask=CWEventMask|CWBackPixel|CWOverrideRedirect;
     XSetWindowAttributes attributes = {
         .override_redirect = true,
@@ -88,181 +91,8 @@ void osd_proglist(void)
                                  &attributes);
 
     /* query all toplevel windows and create list + nodes */
-    uint32_t nchildren;
-    Window root_ret, parent_ret, *children_ret;
-    XQueryTree(xwmain.display,
-               xwmain.root,
-               &root_ret,
-               &parent_ret,
-               &children_ret,
-               &nchildren);
+    applist_init(&xwmain,&context,&list);
 
-    int ypos = 0, lineno = 0;
-    int button_width = 0, button_height = 0;
-    Window app_win;
-    XWindow_app *app_btn = NULL;
-    /* XTextProperty prop; */
-    Atom actual_type;
-    int32_t actual_format;
-    uint64_t nitems, bytes_after;
-    unsigned char *prop_ret = NULL; 
-    XClassHint class_hint;
-    Atom wm_state_atom = XInternAtom(xwmain.display, "WM_STATE",false);
-    Atom wm_workspace_atom = XInternAtom(xwmain.display, "_NET_WM_DESKTOP",false);
-    /* Atom wm_workspace_atom = XInternAtom(xwmain.display, "_NET_CURRENT_DESKTOP",false); */ // current visible workspace
-    Status status;
-    for(size_t i=0; i<nchildren; ++i){
-
-        XWindowAttributes attr;
-        XGetWindowAttributes(xwmain.display,children_ret[i],&attr);
-        if(!attr.override_redirect && attr.map_state == IsViewable){
-
-
-            status = XGetWindowProperty(xwmain.display,
-                                        children_ret[i],
-                                        wm_workspace_atom,
-                                        0, sizeof(uint32_t),
-                                        false,
-                                        AnyPropertyType,
-                                        &actual_type, &actual_format,
-                                        &nitems, &bytes_after,
-                                        &prop_ret);
-            if(prop_ret){
-                printf("%d\n", (uint32_t)*prop_ret);
-            }
-
-
-            XGetClassHint(xwmain.display,children_ret[i],&class_hint);
-            /* printf("res_name: %s\n",class_hint.res_name); */
-            printf("res_class: %s\n",class_hint.res_class);
-            /* XGetWMName(xwmain.display,children_ret[i],&prop); */
-            /* printf("(%d) %s\n", children_ret[i],prop.value); */
-            /* list.length += 1; */
-            xwmain.height += 1;
-            if(strlen(class_hint.res_class) > xwmain.width)
-                xwmain.width = strlen(class_hint.res_class);
-
-            ypos = (xwmain.font->ascent+xwmain.font->descent+
-                   (border_width*2)) *
-                   lineno;
-            button_width = (strlen(class_hint.res_class)+2)*xwmain.font->max_advance_width;
-            button_height = xwmain.font->ascent+xwmain.font->descent;
-
-            app_btn = malloc(sizeof(XWindow_app));
-
-            app_btn->name = malloc(sizeof(char)*strlen(class_hint.res_class));
-            strncpy(app_btn->name,class_hint.res_class,strlen(class_hint.res_class));
-            app_btn->namelen = strlen(class_hint.res_class);
-
-            app_btn->button = create_button(xwmain.display,
-                                           &xwmain.winid,
-                                           &app_win,
-                                           xwmain.depth,
-                                           xwmain.visual,
-                                           context,
-                                           0,              // margin
-                                           ypos,           // y
-                                           button_width,     // width
-                                           button_height,    // height
-                                           &xwmain.colormap,
-                                           2,
-                                           0x333333,
-                                           0xbbbbbb,
-                                           "#000000",      // fg_color
-                                           class_hint.res_class,
-                                           strlen(class_hint.res_class),
-                                           NULL,
-                                           xwmain.font);
-
-            ++lineno;
-            append_to_list(&list,(void*)app_btn);
-
-            continue;
-        }
-
-        status = XGetWindowProperty(xwmain.display,
-                                    children_ret[i],
-                                    wm_state_atom,
-                                    0, sizeof(int64_t),
-                                    false,
-                                    AnyPropertyType,
-                                    &actual_type, &actual_format,
-                                    &nitems, &bytes_after,
-                                    &prop_ret);
-
-        if(status == Success && prop_ret != NULL){
-            int64_t *state_data = (int64_t*)prop_ret;
-            int64_t state = state_data[0];
-
-            if(state != WithdrawnState){
-
-                status = XGetWindowProperty(xwmain.display,
-                                            children_ret[i],
-                                            wm_workspace_atom,
-                                            0, sizeof(uint32_t),
-                                            false,
-                                            AnyPropertyType,
-                                            &actual_type, &actual_format,
-                                            &nitems, &bytes_after,
-                                            &prop_ret);
-                if(prop_ret){
-                    printf("%d\n", (uint32_t)*prop_ret);
-                }
-
-
-                XGetClassHint(xwmain.display,children_ret[i],&class_hint);
-                /* printf("res_name: %s\n",class_hint.res_name); */
-                printf("res_class: %s\n",class_hint.res_class);
-                /* XGetWMName(xwmain.display,children_ret[i],&prop); */
-                /* printf("(%d) %s\n", children_ret[i],prop.value); */
-                /* list.length += 1; */
-                xwmain.height += 1;
-                if(strlen(class_hint.res_class) > xwmain.width)
-                    xwmain.width = strlen(class_hint.res_class);
-
-                ypos = (xwmain.font->ascent+xwmain.font->descent+
-                       (border_width*2)) *
-                       lineno;
-                button_width = (strlen(class_hint.res_class)+2)*xwmain.font->max_advance_width;
-                button_height = xwmain.font->ascent+xwmain.font->descent;
-
-                app_btn = malloc(sizeof(XWindow_app));
-
-                app_btn->name = malloc(sizeof(char)*strlen(class_hint.res_class));
-                strncpy(app_btn->name,class_hint.res_class,strlen(class_hint.res_class));
-                app_btn->namelen = strlen(class_hint.res_class);
-
-                app_btn->button = create_button(xwmain.display,
-                                               &xwmain.winid,
-                                               &app_win,
-                                               xwmain.depth,
-                                               xwmain.visual,
-                                               context,
-                                               0,              // margin
-                                               ypos,           // y
-                                               button_width,     // width
-                                               button_height,    // height
-                                               &xwmain.colormap,
-                                               2,
-                                               0x333333,
-                                               0xbbbbbb,
-                                               "#000000",      // fg_color
-                                               class_hint.res_class,
-                                               strlen(class_hint.res_class),
-                                               NULL,
-                                               xwmain.font);
-
-                ++lineno;
-
-                append_to_list(&list,(void*)app_btn);
-
-                continue;
-            }
-        }
-
-    }
-    ((ListNode*)list.head)->prev = (ListNode*)list.tail;
-    ((ListNode*)list.tail)->next = (ListNode*)list.head;
 
     printf("--------------------------\n");
     ListNode *iter01 = list.head;
@@ -401,6 +231,177 @@ void osd_proglist(void)
     XUngrabKeyboard(xwmain.display,
                     CurrentTime);
     
+}
+
+void 
+applist_init(XWindow_main *xwmain, XContext *context, LinkList *list)
+{
+    uint32_t nchildren;
+    Window root_ret, parent_ret, *children_ret;
+    XQueryTree(xwmain->display,
+               xwmain->root,
+               &root_ret,
+               &parent_ret,
+               &children_ret,
+               &nchildren);
+
+    int ypos = 0, lineno = 0;
+    int button_width = 0, button_height = 0;
+    Window app_win;
+    XWindow_app *app_btn = NULL;
+    /* XTextProperty prop; */
+    unsigned char *data = NULL; 
+    XClassHint class_hint;
+    Atom wm_state_atom = XInternAtom(xwmain->display, "WM_STATE",false);
+    Atom wm_workspace_atom = XInternAtom(xwmain->display, "_NET_WM_DESKTOP",false);
+    /* Atom wm_workspace_atom = XInternAtom(xwmain.display, "_NET_CURRENT_DESKTOP",false); */ // current visible workspace
+    Status status;
+    for(size_t i=0; i<nchildren; ++i){
+
+        XWindowAttributes attr;
+        XGetWindowAttributes(xwmain->display,children_ret[i],&attr);
+        if(!attr.override_redirect && attr.map_state == IsViewable){
+
+            status = get_atom_prop(xwmain, children_ret[i], wm_workspace_atom, &data, sizeof(int32_t));
+            if(data){
+                printf("%d\n", (uint32_t)*data);
+            }
+
+
+            XGetClassHint(xwmain->display,children_ret[i],&class_hint);
+            /* printf("res_name: %s\n",class_hint.res_name); */
+            printf("res_class: %s\n",class_hint.res_class);
+            /* XGetWMName(xwmain.display,children_ret[i],&prop); */
+            /* printf("(%d) %s\n", children_ret[i],prop.value); */
+            /* list.length += 1; */
+            xwmain->height += 1;
+            if(strlen(class_hint.res_class) > xwmain->width)
+                xwmain->width = strlen(class_hint.res_class);
+
+            ypos = (xwmain->font->ascent+xwmain->font->descent+
+                   (border_width*2)) *
+                   lineno;
+            button_width = (strlen(class_hint.res_class)+2)*xwmain->font->max_advance_width;
+            button_height = xwmain->font->ascent+xwmain->font->descent;
+
+            app_btn = xmalloc(sizeof(XWindow_app));
+
+            app_btn->name = xmalloc(sizeof(char)*strlen(class_hint.res_class));
+            strncpy(app_btn->name,class_hint.res_class,strlen(class_hint.res_class));
+            app_btn->namelen = strlen(class_hint.res_class);
+
+            app_btn->button = create_button(xwmain->display,
+                                           &xwmain->winid,
+                                           &app_win,
+                                           xwmain->depth,
+                                           xwmain->visual,
+                                           *context,
+                                           0,              // margin
+                                           ypos,           // y
+                                           button_width,     // width
+                                           button_height,    // height
+                                           &xwmain->colormap,
+                                           2,
+                                           0x333333,
+                                           0xbbbbbb,
+                                           "#000000",      // fg_color
+                                           class_hint.res_class,
+                                           strlen(class_hint.res_class),
+                                           NULL,
+                                           xwmain->font);
+
+            ++lineno;
+            append_to_list(list,(void*)app_btn);
+    
+            continue;
+        }
+
+        status = get_atom_prop(xwmain, children_ret[i], wm_state_atom, &data, sizeof(int64_t));
+        if(status == Success && data != NULL){
+            int64_t *state_data = (int64_t*)data;
+            int64_t state = state_data[0];
+
+            if(state != WithdrawnState){
+
+                status = get_atom_prop(xwmain, children_ret[i], wm_workspace_atom, &data, sizeof(int32_t));
+                if(data){
+                    printf("%d\n", (uint32_t)*data);
+                }
+
+
+                XGetClassHint(xwmain->display,children_ret[i],&class_hint);
+                /* printf("res_name: %s\n",class_hint.res_name); */
+                printf("res_class: %s\n",class_hint.res_class);
+                /* XGetWMName(xwmain.display,children_ret[i],&prop); */
+                /* printf("(%d) %s\n", children_ret[i],prop.value); */
+                /* list.length += 1; */
+                xwmain->height += 1;
+                if(strlen(class_hint.res_class) > xwmain->width)
+                    xwmain->width = strlen(class_hint.res_class);
+
+                ypos = (xwmain->font->ascent+xwmain->font->descent+
+                       (border_width*2)) *
+                       lineno;
+                button_width = (strlen(class_hint.res_class)+2)*xwmain->font->max_advance_width;
+                button_height = xwmain->font->ascent+xwmain->font->descent;
+
+                app_btn = xmalloc(sizeof(XWindow_app));
+
+                app_btn->name = xmalloc(sizeof(char)*strlen(class_hint.res_class));
+                strncpy(app_btn->name,class_hint.res_class,strlen(class_hint.res_class));
+                app_btn->namelen = strlen(class_hint.res_class);
+
+                app_btn->button = create_button(xwmain->display,
+                                               &xwmain->winid,
+                                               &app_win,
+                                               xwmain->depth,
+                                               xwmain->visual,
+                                               *context,
+                                               0,              // margin
+                                               ypos,           // y
+                                               button_width,     // width
+                                               button_height,    // height
+                                               &xwmain->colormap,
+                                               2,
+                                               0x333333,
+                                               0xbbbbbb,
+                                               "#000000",      // fg_color
+                                               class_hint.res_class,
+                                               strlen(class_hint.res_class),
+                                               NULL,
+                                               xwmain->font);
+
+                ++lineno;
+
+                append_to_list(list,(void*)app_btn);
+
+                continue;
+            }
+        }
+
+    }
+    ((ListNode*)list->head)->prev = (ListNode*)list->tail;
+    ((ListNode*)list->tail)->next = (ListNode*)list->head;
+}
+
+Status 
+get_atom_prop(XWindow_main *xwmain, Window child, Atom atom, unsigned char **data, size_t nbytes)
+{
+    Status status;
+    Atom actual_type = {0};
+    int32_t actual_format = {0};
+    uint64_t nitems = {0}, bytes_after = {0};
+    status = XGetWindowProperty(xwmain->display,
+                                child,
+                                atom,
+                                0, nbytes,
+                                false,
+                                AnyPropertyType,
+                                &actual_type, &actual_format,
+                                &nitems, &bytes_after,
+                                data);
+
+    return(status);
 }
 
 #endif 
