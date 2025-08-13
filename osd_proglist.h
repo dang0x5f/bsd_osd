@@ -40,6 +40,7 @@ typedef struct {
     uint8_t workspace;
 } XWindow_app;
 
+void xwmain_init(XWindow_main*);
 void applist_init(XWindow_main*,XContext*,LinkList*);
 Status get_atom_prop(XWindow_main*,Window,Atom,unsigned char**,size_t);
 
@@ -55,40 +56,7 @@ void osd_proglist(void)
 
     XContext context = XUniqueContext();
 
-    xwmain.display = XOpenDisplay(NULL); 
-    xwmain.screen = DefaultScreen(xwmain.display);
-    xwmain.root = DefaultRootWindow(xwmain.display);
-    xwmain.font = font_setup(xwmain.display, xwmain.screen,
-                             "Deja Vu Sans Mono:pixelsize=16");
-    xwmain.depth = DefaultDepth(xwmain.display, xwmain.screen);
-    xwmain.visual = DefaultVisual(xwmain.display, xwmain.screen);
-    xwmain.colormap = DefaultColormap(xwmain.display, xwmain.screen);
-    xwmain.screen_width = DisplayWidth(xwmain.display,xwmain.screen);
-    xwmain.screen_height = DisplayHeight(xwmain.display,xwmain.screen);
-
-    int x=0, y=0;
-    int valuemask=CWEventMask|CWBackPixel|CWOverrideRedirect;
-    XSetWindowAttributes attributes = {
-        .override_redirect = true,
-        .background_pixel = 0xfffdd0,
-        .event_mask = ExposureMask|
-                      KeyPressMask|
-                      SubstructureNotifyMask,
-    };
-    
-    /* xwmain.width = xwmain.screen_width-100; */
-    /* xwmain.height = xwmain.screen_height-100; */
-    xwmain.winid = XCreateWindow(xwmain.display, 
-                                 xwmain.root, 
-                                 x, y, 
-                                 xwmain.screen_width, 
-                                 xwmain.screen_height, 
-                                 border_width, 
-                                 xwmain.depth, 
-                                 InputOutput, 
-                                 xwmain.visual, 
-                                 valuemask, 
-                                 &attributes);
+    xwmain_init(&xwmain);
 
     /* query all toplevel windows and create list + nodes */
     applist_init(&xwmain,&context,&list);
@@ -402,6 +370,44 @@ get_atom_prop(XWindow_main *xwmain, Window child, Atom atom, unsigned char **dat
                                 data);
 
     return(status);
+}
+
+void xwmain_init(XWindow_main *xwmain)
+{
+    xwmain->display = XOpenDisplay(NULL); 
+    xwmain->screen = DefaultScreen(xwmain->display);
+    xwmain->root = DefaultRootWindow(xwmain->display);
+    xwmain->font = font_setup(xwmain->display, xwmain->screen,
+                             "Deja Vu Sans Mono:pixelsize=16");
+    xwmain->depth = DefaultDepth(xwmain->display, xwmain->screen);
+    xwmain->visual = DefaultVisual(xwmain->display, xwmain->screen);
+    xwmain->colormap = DefaultColormap(xwmain->display, xwmain->screen);
+    xwmain->screen_width = DisplayWidth(xwmain->display,xwmain->screen);
+    xwmain->screen_height = DisplayHeight(xwmain->display,xwmain->screen);
+
+    int x=0, y=0;
+    int valuemask=CWEventMask|CWBackPixel|CWOverrideRedirect;
+    XSetWindowAttributes attributes = {
+        .override_redirect = true,
+        .background_pixel = 0xfffdd0,
+        .event_mask = ExposureMask|
+                      KeyPressMask|
+                      SubstructureNotifyMask,
+    };
+    
+    /* xwmain.width = xwmain.screen_width-100; */
+    /* xwmain.height = xwmain.screen_height-100; */
+    xwmain->winid = XCreateWindow(xwmain->display, 
+                                  xwmain->root, 
+                                  x, y, 
+                                  xwmain->screen_width, 
+                                  xwmain->screen_height, 
+                                  border_width, 
+                                  xwmain->depth, 
+                                  InputOutput, 
+                                  xwmain->visual, 
+                                  valuemask, 
+                                  &attributes);
 }
 
 #endif 
