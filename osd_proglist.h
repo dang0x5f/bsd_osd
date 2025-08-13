@@ -43,13 +43,26 @@ typedef struct {
 void xwmain_init(XWindow_main*);
 void applist_init(XWindow_main*,XContext*,LinkList*);
 Status get_atom_prop(XWindow_main*,Window,Atom,unsigned char**,size_t);
+void reconf_xwmain_wh(XWindow_main*);
 
 // red : #ff4040
 static const int border_width = 2;
 
-void osd_proglist(void)
+void reconf_xwmain_wh(XWindow_main *xwmain)
 {
     XWindowChanges changes;
+    xwmain->width = ((xwmain->width+2)*(xwmain->font->max_advance_width))
+                 + ((border_width*2));
+    xwmain->height = ((xwmain->height)*(xwmain->font->ascent+xwmain->font->descent))
+                  + ((xwmain->height)*(border_width*2));
+    changes.width = xwmain->width;
+    changes.height = xwmain->height;
+    XConfigureWindow(xwmain->display,xwmain->winid,CWWidth|CWHeight,&changes);
+    /* end */
+}
+
+void osd_proglist(void)
+{
 
     XWindow_main xwmain = {0};
     LinkList list = {0};
@@ -80,14 +93,7 @@ void osd_proglist(void)
     /* printf("%lu\n", list.length); */
 
     /* re-configure main width and height */
-    xwmain.width = ((xwmain.width+2)*(xwmain.font->max_advance_width))
-                 + ((border_width*2));
-    xwmain.height = ((xwmain.height)*(xwmain.font->ascent+xwmain.font->descent))
-                  + ((xwmain.height)*(border_width*2));
-    changes.width = xwmain.width;
-    changes.height = xwmain.height;
-    XConfigureWindow(xwmain.display,xwmain.winid,CWWidth|CWHeight,&changes);
-    /* end */
+    reconf_xwmain_wh(&xwmain);
 
     /* re-configure button widths*/ 
     ListNode *iter = list.head;
