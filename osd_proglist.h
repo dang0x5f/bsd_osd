@@ -7,7 +7,6 @@ void osd_proglist(void);
 
 #ifdef OSD_PROGLIST_IMPL
 
-
 //  ...............
 // [ * prog_name   ]
 // [ * prog_nameee ]
@@ -44,27 +43,15 @@ void xwmain_init(XWindow_main*);
 void applist_init(XWindow_main*,XContext*,LinkList*);
 Status get_atom_prop(XWindow_main*,Window,Atom,unsigned char**,size_t);
 void reconf_xwmain_wh(XWindow_main*);
-void create_appnode(XWindow_main *, Window , Atom , XContext *, LinkList *, int *);
+void resize_buttons(XWindow_main*,LinkList*,size_t);
+void create_appnode(XWindow_main*,Window,Atom,XContext*,LinkList*,int*);
+void debug_list_printout(LinkList*);
 
 // red : #ff4040
 static const int border_width = 2;
 
-void reconf_xwmain_wh(XWindow_main *xwmain)
-{
-    XWindowChanges changes;
-    xwmain->width = ((xwmain->width+2)*(xwmain->font->max_advance_width))
-                 + ((border_width*2));
-    xwmain->height = ((xwmain->height)*(xwmain->font->ascent+xwmain->font->descent))
-                  + ((xwmain->height)*(border_width*2));
-    changes.width = xwmain->width;
-    changes.height = xwmain->height;
-    XConfigureWindow(xwmain->display,xwmain->winid,CWWidth|CWHeight,&changes);
-    /* end */
-}
-
 void osd_proglist(void)
 {
-
     XWindow_main xwmain = {0};
     LinkList list = {0};
 
@@ -75,51 +62,15 @@ void osd_proglist(void)
     /* query all toplevel windows and create list + nodes */
     applist_init(&xwmain,&context,&list);
 
-
-    printf("--------------------------\n");
-    ListNode *iter01 = list.head;
-    for(size_t i=0; i<list.length; ++i){
-        printf("%lu\n {\n  curr: %p\n  prev: %p\n  next: %p\n }\n\n",
-               i, (void*)iter01, (void*)iter01->prev, (void*)iter01->next);
-
-        iter01 = iter01->next;
-    }
-    printf("--------------------------\n");
-    /* end */
-
     size_t max_name_len = xwmain.width;
-    size_t preferred_button_width = (max_name_len+2)*
-                                    xwmain.font->max_advance_width;
-    /* printf("%lu\n", preferred_button_width); */ 
-    /* printf("%lu\n", list.length); */
 
     /* re-configure main width and height */
     reconf_xwmain_wh(&xwmain);
 
     /* re-configure button widths*/ 
-    ListNode *iter = list.head;
-    /* while(iter){ */
-    for(size_t i=0; i<list.length; ++i){
-        printf("Button {\n  .width=%d\n  .height=%d\n}\n", 
-                ((XWindow_app*)iter->node_data)->button->width,
-                ((XWindow_app*)iter->node_data)->button->height);
-        
-        if(((XWindow_app*)iter->node_data)->button->width < preferred_button_width){
+    resize_buttons(&xwmain,&list,max_name_len);
 
-            ((XWindow_app*)iter->node_data)->button->width = preferred_button_width;
-
-            XWindowChanges width_change;
-            width_change.width = ((XWindow_app*)iter->node_data)->button->width;
-            XConfigureWindow(xwmain.display,
-                            ((XWindow_app*)iter->node_data)->button->win,
-                            CWWidth,
-                            &width_change); 
-        }
-
-        iter = iter->next;
-    }
-    /* end */
-
+/* debug_list_printout(&list); */
     
     /* init selected */
     // if head exists
@@ -130,14 +81,11 @@ void osd_proglist(void)
     list.selected = list.head;
     /* end */
 
-
     XMapWindow(xwmain.display,xwmain.winid);
     XSync(xwmain.display,false);
 
-
     XEvent ev;
     bool running=true;
-
     XGrabKeyboard(xwmain.display,
                   xwmain.winid,
                   true,
@@ -220,8 +168,6 @@ applist_init(XWindow_main *xwmain, XContext *context, LinkList *list)
                &children_ret,
                &nchildren);
 
-    /* XTextProperty prop; */
-    /* int ypos = 0: */
     int lineno = 0;
     Status status;
     unsigned char *data = NULL; 
@@ -379,6 +325,57 @@ void xwmain_init(XWindow_main *xwmain)
                                   xwmain->visual, 
                                   valuemask, 
                                   &attributes);
+}
+
+void reconf_xwmain_wh(XWindow_main *xwmain)
+{
+    XWindowChanges changes;
+    xwmain->width = ((xwmain->width+2)*(xwmain->font->max_advance_width))
+                 + ((border_width*2));
+    xwmain->height = ((xwmain->height)*(xwmain->font->ascent+xwmain->font->descent))
+                  + ((xwmain->height)*(border_width*2));
+    changes.width = xwmain->width;
+    changes.height = xwmain->height;
+    XConfigureWindow(xwmain->display,xwmain->winid,CWWidth|CWHeight,&changes);
+}
+
+void resize_buttons(XWindow_main *xwmain, LinkList *list, size_t max_name_len)
+{
+    size_t preferred_button_width = (max_name_len+2)*
+                                    xwmain->font->max_advance_width;
+    ListNode *iter = list->head;
+    for(size_t i=0; i<list->length; ++i){
+        printf("Button {\n  .width=%d\n  .height=%d\n}\n", 
+                ((XWindow_app*)iter->node_data)->button->width,
+                ((XWindow_app*)iter->node_data)->button->height);
+        
+        if(((XWindow_app*)iter->node_data)->button->width < preferred_button_width){
+
+            ((XWindow_app*)iter->node_data)->button->width = preferred_button_width;
+
+            XWindowChanges width_change;
+            width_change.width = ((XWindow_app*)iter->node_data)->button->width;
+            XConfigureWindow(xwmain->display,
+                            ((XWindow_app*)iter->node_data)->button->win,
+                            CWWidth,
+                            &width_change); 
+        }
+
+        iter = iter->next;
+    }
+}
+
+void debug_list_printout(LinkList *list)
+{
+    printf("--------------------------\n");
+    ListNode *iter01 = list->head;
+    for(size_t i=0; i<list->length; ++i){
+        printf("%lu\n {\n  curr: %p\n  prev: %p\n  next: %p\n }\n\n",
+               i, (void*)iter01, (void*)iter01->prev, (void*)iter01->next);
+
+        iter01 = iter01->next;
+    }
+    printf("--------------------------\n");
 }
 
 #endif 
