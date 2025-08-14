@@ -45,6 +45,8 @@ Status get_atom_prop(XWindow_main*,Window,Atom,unsigned char**,size_t);
 void reconf_xwmain_wh(XWindow_main*);
 void resize_buttons(XWindow_main*,LinkList*,size_t);
 void create_appnode(XWindow_main*,Window,Atom,XContext*,LinkList*,int*);
+void draw_buttons2(XWindow_main *, LinkList *);
+bool process_keypress2(XWindow_main*,LinkList*,KeySym);
 void debug_list_printout(LinkList*);
 
 // red : #ff4040
@@ -102,48 +104,8 @@ void osd_proglist(void)
                     expose_button(button,&ev);
                 break;
             case KeyPress:
-                
-                bool redraw = false;
                 KeySym keysym = XLookupKeysym(&ev.xkey,0);               
-
-                switch(keysym){
-                    case XK_Down:
-                    case XK_j:
-                        list.selected = ((ListNode*)list.selected)->next;
-                        /* list->current_mixer = list->current_mixer->next; */
-                        redraw=true;
-                        break;
-                    case XK_Up:  
-                    case XK_k:
-                        list.selected = ((ListNode*)list.selected)->prev;
-                        /* list->current_mixer = list->current_mixer->prev; */
-                        redraw=true;
-                        break;
-                    case XK_Return:
-                        /* set_defaultunit(list->current_mixer->mixer_id,list); */
-                        redraw=true;
-                        break;
-                    case XK_q:
-                    case XK_Escape:
-                        running=false;
-                        break;
-                }
-
-                if(redraw){
-                    ListNode *iter02 = list.head;
-                    for(size_t i=0; i<list.length; ++i){
-                        if(iter02 == list.selected)
-                            select_button(((XWindow_app*)iter02->node_data)->button,
-                                          xwmain.display,
-                                          ((XWindow_app*)iter02->node_data)->button->win);
-                        else
-                            unselect_button(((XWindow_app*)iter02->node_data)->button,
-                                            xwmain.display,
-                                            ((XWindow_app*)iter02->node_data)->button->win);
-
-                        iter02 = iter02->next;
-                    }
-                }
+                process_keypress2(&xwmain,&list,keysym);
 
                 printf("%d\n",ev.xkey.keycode);
                 if(ev.xkey.keycode==9||ev.xkey.keycode==53)
@@ -363,6 +325,52 @@ void resize_buttons(XWindow_main *xwmain, LinkList *list, size_t max_name_len)
 
         iter = iter->next;
     }
+}
+
+void draw_buttons2(XWindow_main *xwmain, LinkList *list)
+{
+    ListNode *iter = list->head;
+    for(size_t i=0; i<list->length; ++i){
+        if(iter == list->selected)
+            select_button(((XWindow_app*)iter->node_data)->button,
+                          xwmain->display,
+                          ((XWindow_app*)iter->node_data)->button->win);
+        else
+            unselect_button(((XWindow_app*)iter->node_data)->button,
+                            xwmain->display,
+                            ((XWindow_app*)iter->node_data)->button->win);
+
+        iter = iter->next;
+    }
+}
+
+bool process_keypress2(XWindow_main *xwmain, LinkList *list, KeySym keysym)
+{
+    bool running=true, redraw=false;
+
+    switch(keysym){
+        case XK_Down:
+        case XK_j:
+            list->selected = ((ListNode*)list->selected)->next;
+            redraw=true;
+            break;
+        case XK_Up:  
+        case XK_k:
+            list->selected = ((ListNode*)list->selected)->prev;
+            redraw=true;
+            break;
+        case XK_Return:
+            redraw=true;
+            break;
+        case XK_q:
+        case XK_Escape:
+            running=false;
+            break;
+    }
+
+    if(redraw) draw_buttons2(xwmain, list);
+
+    return(running);
 }
 
 void debug_list_printout(LinkList *list)
