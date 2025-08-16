@@ -15,8 +15,8 @@
 
 #include <sys/sysctl.h>
 
-#define OSD_COMMON_IMPLEMENTATION
-#include "osd_common.h"
+#define OSD_UTIL_IMPLEMENTATION
+#include "osd_util.h"
 
 #define OSD_VOLUME_IMPLEMENTATION
 #include "osd_volume.h"

@@ -28,19 +28,6 @@ typedef struct {
     size_t length;
 } Button_List;
 
-typedef struct  {
-    Display *display;
-    int screen_num;
-    XftDraw *draw;
-    Colormap colormap;
-    uint32_t depth;
-    Visual *visual;
-    XSetWindowAttributes attributes;
-    uint32_t valuemask;
-    uint32_t width;
-    uint32_t height;
-} WinResources;
-
 #endif
 
 #ifdef OSD_OUTDEVICE_IMPLEMENTATION
@@ -100,7 +87,7 @@ int osd_outdevice(void)
     button_height = line_height;
     R->width  = (button_width)+(border_pixel*2)+(margin*2);
     R->height = ((line_height+(border_pixel*2))*(nlines))+(margin*(nlines+1));
-    y_pos  = DisplayHeight(R->display,R->screen_num)-(R->height+(border_pixel*2));
+    y_pos  = getdim(R->display,DPY_H)-(R->height+(border_pixel*2));
     
     Window window = XCreateWindow(R->display,root,x_pos,y_pos,R->width,R->height,
                                   border_pixel,R->depth,CopyFromParent,

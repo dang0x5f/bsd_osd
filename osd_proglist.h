@@ -29,7 +29,7 @@ typedef struct {
     Visual *visual;
     Colormap colormap;
     size_t width,height;
-    size_t screen_width,screen_height;
+    /* size_t screen_width,screen_height; */
 } XWindow_main;
 
 typedef struct {
@@ -38,6 +38,13 @@ typedef struct {
     size_t namelen;
     uint8_t workspace;
 } XWindow_app;
+
+typedef struct {
+    char *wm_name;
+    char *res_name;
+    char *res_class;
+    char *workspace;
+} AppButtonNames;
 
 void xwmain_init(XWindow_main*);
 void applist_init(XWindow_main*,XContext*,LinkList*);
@@ -61,6 +68,9 @@ void osd_proglist(void)
 
     xwmain_init(&xwmain);
 
+printf("WIDTH : %zu\n",getdim(xwmain.display, DPY_W));
+printf("HEIGHT : %zu\n",getdim(xwmain.display, DPY_H));
+
     /* query all toplevel windows and create list + nodes */
     applist_init(&xwmain,&context,&list);
 
@@ -77,9 +87,9 @@ void osd_proglist(void)
     /* init selected */
     // if head exists
     ListNode *node = list.head;
-    select_button(((XWindow_app*)node->node_data)->button,
+    select_button(((XWindow_app*)node->data)->button,
                     xwmain.display,
-                    ((XWindow_app*)node->node_data)->button->win);
+                    ((XWindow_app*)node->data)->button->win);
     list.selected = list.head;
     /* end */
 
@@ -161,8 +171,7 @@ applist_init(XWindow_main *xwmain, XContext *context, LinkList *list)
         }
 
     }
-    ((ListNode*)list->head)->prev = (ListNode*)list->tail;
-    ((ListNode*)list->tail)->next = (ListNode*)list->head;
+    loop_list(list);
 }
 
 void create_appnode(XWindow_main *xwmain, Window child, Atom atom, XContext *context, LinkList *list , int *lineno)
@@ -179,6 +188,7 @@ void create_appnode(XWindow_main *xwmain, Window child, Atom atom, XContext *con
     get_atom_prop(xwmain, child, atom, &data, sizeof(int32_t));
     if(data){
         printf("%d\n", (uint32_t)*data);
+        printf("%c\n", '0'+(uint32_t)*data); // convert to char
     }
 
     XGetClassHint(xwmain->display,child,&class_hint);
@@ -261,8 +271,6 @@ void xwmain_init(XWindow_main *xwmain)
     xwmain->depth = DefaultDepth(xwmain->display, xwmain->screen);
     xwmain->visual = DefaultVisual(xwmain->display, xwmain->screen);
     xwmain->colormap = DefaultColormap(xwmain->display, xwmain->screen);
-    xwmain->screen_width = DisplayWidth(xwmain->display,xwmain->screen);
-    xwmain->screen_height = DisplayHeight(xwmain->display,xwmain->screen);
 
     int x=0, y=0;
     int valuemask=CWEventMask|CWBackPixel|CWOverrideRedirect;
@@ -274,13 +282,11 @@ void xwmain_init(XWindow_main *xwmain)
                       SubstructureNotifyMask,
     };
     
-    /* xwmain.width = xwmain.screen_width-100; */
-    /* xwmain.height = xwmain.screen_height-100; */
     xwmain->winid = XCreateWindow(xwmain->display, 
                                   xwmain->root, 
                                   x, y, 
-                                  xwmain->screen_width, 
-                                  xwmain->screen_height, 
+                                  getdim(xwmain->display,DPY_W),
+                                  getdim(xwmain->display,DPY_H),
                                   border_width, 
                                   xwmain->depth, 
                                   InputOutput, 
@@ -308,17 +314,17 @@ void resize_buttons(XWindow_main *xwmain, LinkList *list, size_t max_name_len)
     ListNode *iter = list->head;
     for(size_t i=0; i<list->length; ++i){
         printf("Button {\n  .width=%d\n  .height=%d\n}\n", 
-                ((XWindow_app*)iter->node_data)->button->width,
-                ((XWindow_app*)iter->node_data)->button->height);
+                ((XWindow_app*)iter->data)->button->width,
+                ((XWindow_app*)iter->data)->button->height);
         
-        if(((XWindow_app*)iter->node_data)->button->width < preferred_button_width){
+        if(((XWindow_app*)iter->data)->button->width < preferred_button_width){
 
-            ((XWindow_app*)iter->node_data)->button->width = preferred_button_width;
+            ((XWindow_app*)iter->data)->button->width = preferred_button_width;
 
             XWindowChanges width_change;
-            width_change.width = ((XWindow_app*)iter->node_data)->button->width;
+            width_change.width = ((XWindow_app*)iter->data)->button->width;
             XConfigureWindow(xwmain->display,
-                            ((XWindow_app*)iter->node_data)->button->win,
+                            ((XWindow_app*)iter->data)->button->win,
                             CWWidth,
                             &width_change); 
         }
@@ -332,13 +338,13 @@ void draw_buttons2(XWindow_main *xwmain, LinkList *list)
     ListNode *iter = list->head;
     for(size_t i=0; i<list->length; ++i){
         if(iter == list->selected)
-            select_button(((XWindow_app*)iter->node_data)->button,
+            select_button(((XWindow_app*)iter->data)->button,
                           xwmain->display,
-                          ((XWindow_app*)iter->node_data)->button->win);
+                          ((XWindow_app*)iter->data)->button->win);
         else
-            unselect_button(((XWindow_app*)iter->node_data)->button,
+            unselect_button(((XWindow_app*)iter->data)->button,
                             xwmain->display,
-                            ((XWindow_app*)iter->node_data)->button->win);
+                            ((XWindow_app*)iter->data)->button->win);
 
         iter = iter->next;
     }
@@ -385,5 +391,7 @@ void debug_list_printout(LinkList *list)
     }
     printf("--------------------------\n");
 }
+
+
 
 #endif 
