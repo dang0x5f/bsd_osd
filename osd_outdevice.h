@@ -88,10 +88,30 @@ int osd_outdevice(void)
     R->width  = (button_width)+(border_pixel*2)+(margin*2);
     R->height = ((line_height+(border_pixel*2))*(nlines))+(margin*(nlines+1));
     y_pos  = getdim(R->display,DPY_H)-(R->height+(border_pixel*2));
+
+    XSetWindowAttributes attributes = {
+        .override_redirect=true,
+        .background_pixel=0x555555,
+        .border_pixel=0xfffdd0,
+        .event_mask = ExposureMask
+                    | KeyPressMask
+                    | VisibilityChangeMask
+                    | SubstructureNotifyMask,
+    };
+    int valuemask = CWOverrideRedirect
+                  | CWBackPixel
+                  | CWEventMask
+                  | CWBorderPixel;
     
-    Window window = XCreateWindow(R->display,root,x_pos,y_pos,R->width,R->height,
-                                  border_pixel,R->depth,CopyFromParent,
-                                  R->visual,R->valuemask,&R->attributes);
+    Window window = XCreateWindow(R->display,
+                                  root,
+                                  x_pos,y_pos,
+                                  R->width,R->height,border_pixel,
+                                  R->depth,
+                                  CopyFromParent,
+                                  R->visual,
+                                  valuemask,
+                                  &attributes);
     R->draw = XftDrawCreate(R->display,window,R->visual,R->colormap);
 
     button_list = create_buttonlist(R,window,&context,button_width,
@@ -134,30 +154,6 @@ int osd_outdevice(void)
 }
 
 
-WinResources *init_resources(void)
-{
-    WinResources *res = malloc(sizeof(WinResources));
-
-    res->display    = XOpenDisplay(NULL);
-    res->screen_num = DefaultScreen(res->display);
-    res->colormap   = DefaultColormap(res->display,res->screen_num);
-    res->depth      = DefaultDepth(res->display,res->screen_num);
-    res->visual     = DefaultVisual(res->display,res->screen_num);
-
-    res->attributes.override_redirect = true;
-    res->attributes.background_pixel  = 0x555555;
-    res->attributes.border_pixel      = 0xfffdd0;
-    res->attributes.event_mask = ExposureMask
-                               | KeyPressMask
-                               | VisibilityChangeMask
-                               | SubstructureNotifyMask;
-    res->valuemask = CWOverrideRedirect
-                   | CWBackPixel
-                   | CWEventMask
-                   | CWBorderPixel;
-
-    return(res);
-}
 
 Button_List create_buttonlist(WinResources *R, Window parent, XContext *context, 
                               uint32_t width, uint32_t height, uint32_t nmixers, 

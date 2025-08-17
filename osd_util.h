@@ -7,14 +7,16 @@ typedef struct node{
     void *data;
     struct node *next;
     struct node *prev;
-}ListNode;
+} ListNode;
+typedef struct ListNode ButtonNode;
 
 typedef struct list{
     void *head;
     void *tail;
     void *selected;
     size_t length;
-}LinkList;
+} LinkList;
+typedef struct LinkList ButtonList;
 
 typedef struct  {
     Display *display;
@@ -23,12 +25,31 @@ typedef struct  {
     Colormap colormap;
     uint32_t depth;
     Visual *visual;
-    XSetWindowAttributes attributes;
-    XContext ctx;
-    uint32_t valuemask;
     uint32_t width;
     uint32_t height;
+    uint32_t margin;
 } WinResources;
+
+typedef struct {
+    Window id;
+    /* WinData w;          TODO*/
+    /* WinProcesses p;     TODO*/
+    WinResources *r;
+} OsdWindow;
+
+void (*osd_func_init)(void);
+
+void (*init)(void);
+void (*win_init)(void);
+void (*list_init)(void);
+void (*indic_init)(void);
+
+void (*draw)(void);
+void (*draw_header)(void);
+void (*draw_buttons)(void);
+
+void (*run)(void);
+void (*resize)(void);
 
 void *
 xmalloc(size_t len);
@@ -105,6 +126,19 @@ loop_list(LinkList *list)
 {
     ((ListNode*)list->head)->prev = (ListNode*)list->tail;
     ((ListNode*)list->tail)->next = (ListNode*)list->head;
+}
+
+WinResources *init_resources(void)
+{
+    WinResources *res = malloc(sizeof(WinResources));
+
+    res->display    = XOpenDisplay(NULL);
+    res->screen_num = DefaultScreen(res->display);
+    res->colormap   = DefaultColormap(res->display,res->screen_num);
+    res->depth      = DefaultDepth(res->display,res->screen_num);
+    res->visual     = DefaultVisual(res->display,res->screen_num);
+
+    return(res);
 }
 
 #define DPY_W 1

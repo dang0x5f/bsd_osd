@@ -20,16 +20,15 @@ void osd_proglist(void);
 //  ```````````````
 
 typedef struct {
-    Window winid;
-    Window root;
     Display *display;
     int screen;
-    XftFont *font;
+    Colormap colormap;
     int depth;
     Visual *visual;
-    Colormap colormap;
     size_t width,height;
-    /* size_t screen_width,screen_height; */
+    Window winid;
+    Window root;
+    XftFont *font;
 } XWindow_main;
 
 typedef struct {
@@ -46,6 +45,13 @@ typedef struct {
     char *workspace;
 } AppButtonNames;
 
+void init(void);
+
+void init(void)
+{
+
+}
+
 void xwmain_init(XWindow_main*);
 void applist_init(XWindow_main*,XContext*,LinkList*);
 Status get_atom_prop(XWindow_main*,Window,Atom,unsigned char**,size_t);
@@ -59,8 +65,14 @@ void debug_list_printout(LinkList*);
 // red : #ff4040
 static const int border_width = 2;
 
+// ------ REFACTORING ---------
+
+
+
+
 void osd_proglist(void)
 {
+    OsdWindow mainwin = {0};
     XWindow_main xwmain = {0};
     LinkList list = {0};
 
@@ -258,6 +270,14 @@ get_atom_prop(XWindow_main *xwmain, Window child, Atom atom, unsigned char **dat
                                 data);
 
     return(status);
+}
+
+void proglist_init(void);
+
+/* TODO */
+void proglist_mainwininit(OsdWindow *w)
+{
+    w->r = init_resources();
 }
 
 void xwmain_init(XWindow_main *xwmain)
